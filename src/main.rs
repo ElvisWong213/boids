@@ -116,7 +116,7 @@ impl MovableMode for World {
     fn update(&mut self) {
         let copy_boids: Vec<Boid> = self.boids.to_vec();
         for boid in &mut self.boids {
-            boid.separat(&copy_boids);
+            boid.separate(&copy_boids);
             boid.update();
         }
     }
@@ -151,7 +151,7 @@ impl Boid {
         }
     }
 
-    fn separat(&mut self, boids: &Vec<Boid>) {
+    fn separate(&mut self, boids: &Vec<Boid>) {
         let mut close_dx: f32 = 0.0;
         let mut close_dy: f32 = 0.0;
         for other_boid in boids {
