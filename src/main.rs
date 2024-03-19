@@ -2,10 +2,11 @@ use pixels::{self, Pixels, SurfaceTexture};
 use winit::{self, dpi::{PhysicalSize}, event::{ElementState, Event, MouseButton, WindowEvent}, event_loop::{ControlFlow, EventLoop}, window::WindowBuilder};
 use rand::Rng;
 
-const WIDTH: u32 = 1024;
-const HEIGHT: u32 = 720;
+const WIDTH: u32 = 1920;
+const HEIGHT: u32 = 1080;
 const SPEED: i16 = 5;
 const SIZE: i16 = 20;
+const AVOID_FACTOR: f32 = 1.0;
 
 fn main() {
     let event_loop = EventLoop::new().unwrap();
@@ -76,14 +77,14 @@ struct World {
 }
 
 impl World {
-   fn new() -> Self {
+    fn new() -> Self {
         Self {
            background: Background::new([0, 0, 0, 0]),
            boids: Vec::new(),
         }
-   }
+    }
 
-   fn spawn_random_boids(&mut self, numbers: u16) {
+    fn spawn_random_boids(&mut self, numbers: u16) {
         let mut rng = rand::thread_rng();
         for _ in 0..numbers {
             let x = rng.gen_range(0..WIDTH - SIZE as u32) as i16;
@@ -91,16 +92,15 @@ impl World {
 
             self.spawn_boids(x, y); 
         }
-   }
+    }
 
-   fn spawn_boids(&mut self, x: i16, y:i16) {
+    fn spawn_boids(&mut self, x: i16, y:i16) {
         let mut rng = rand::thread_rng();
         let velocity_x = rng.gen_range(-SPEED..=SPEED);
         let range: [i16; 2] = [-1, 1];
         let velocity_y = ((SPEED.pow(2) - velocity_x.pow(2)) as f32).sqrt() as i16 * range[rng.gen_range(0..=1)];
         self.boids.push(Boid::new(x, y, SIZE, velocity_x, velocity_y, [255, 255, 255, 255]));
-   }
-
+    }
 }
 
 impl RenderNode for World {
@@ -114,7 +114,9 @@ impl RenderNode for World {
 
 impl MovableMode for World {
     fn update(&mut self) {
+        let copy_boids: Vec<Boid> = self.boids.to_vec();
         for boid in &mut self.boids {
+            boid.separat(&copy_boids);
             boid.update();
         }
     }
@@ -127,6 +129,7 @@ trait RenderNode {
      fn update(&mut self) {}
  }
 
+#[derive(Clone, PartialEq)]
 struct Boid {
     x: i16,
     y: i16,
@@ -147,6 +150,40 @@ impl Boid {
             color,
         }
     }
+
+    fn separat(&mut self, boids: &Vec<Boid>) {
+        let mut close_dx: f32 = 0.0;
+        let mut close_dy: f32 = 0.0;
+        for other_boid in boids {
+            if self == other_boid {
+                continue;
+            }
+            
+            let dx = (self.x - other_boid.x) as f32;
+            let dy = (self.y - other_boid.y) as f32;
+            let d = (dx * dx + dy * dy).sqrt();
+            if d <= 100.0 {
+                let diff: f32 = 1.0 / d;
+                close_dx += dx * diff;
+                close_dy += dy * diff;
+            }
+        }
+        self.velocity_x += (close_dx * AVOID_FACTOR) as i16;
+        self.velocity_y += (close_dy * AVOID_FACTOR) as i16;
+        let max_speed = 10;
+        if self.velocity_x > max_speed {
+            self.velocity_x = max_speed;
+        }
+        if self.velocity_x < -max_speed {
+            self.velocity_x = -max_speed;
+        }
+        if self.velocity_y > max_speed {
+            self.velocity_y = max_speed;
+        }
+        if self.velocity_y < -max_speed {
+            self.velocity_y = -max_speed;
+        }
+    } 
 }
 
 impl RenderNode for Boid {
@@ -173,12 +210,24 @@ impl RenderNode for Boid {
 
 impl MovableMode for Boid {
     fn update(&mut self) {
-        if self.x < 0 || self.x + self.size > WIDTH as i16 {
-            self.velocity_x *= -1;
+        if self.x < -SIZE {
+            self.x = WIDTH as i16;
         }
-        if self.y < 0 || self.y + self.size > HEIGHT as i16 {
-            self.velocity_y *= -1;
+        if self.x > WIDTH as i16 {
+            self.x = 0;
         }
+        if self.y < -SIZE {
+            self.y = HEIGHT as i16;
+        }
+        if self.y > HEIGHT as i16 {
+            self.y = 0;
+        }
+        // if self.x < 0 || self.x + self.size > WIDTH as i16 {
+        //     self.velocity_x *= -1;
+        // }
+        // if self.y < 0 || self.y + self.size > HEIGHT as i16 {
+        //     self.velocity_y *= -1;
+        // }
 
         self.x += self.velocity_x;
         self.y += self.velocity_y;
