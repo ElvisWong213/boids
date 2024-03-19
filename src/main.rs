@@ -7,6 +7,8 @@ const HEIGHT: u32 = 1080;
 const SPEED: i16 = 5;
 const SIZE: i16 = 20;
 const AVOID_FACTOR: f32 = 1.0;
+const MATCHING_FACTOR: f32 = 0.5;
+const SAFE_RADIUS: f32 = 300.0;
 
 fn main() {
     let event_loop = EventLoop::new().unwrap();
@@ -117,6 +119,8 @@ impl MovableMode for World {
         let copy_boids: Vec<Boid> = self.boids.to_vec();
         for boid in &mut self.boids {
             boid.separate(&copy_boids);
+            boid.align(&copy_boids);
+            boid.speed_limit();
             boid.update();
         }
     }
@@ -162,7 +166,7 @@ impl Boid {
             let dx = (self.x - other_boid.x) as f32;
             let dy = (self.y - other_boid.y) as f32;
             let d = (dx * dx + dy * dy).sqrt();
-            if d <= 100.0 {
+            if d <= SAFE_RADIUS {
                 let diff: f32 = 1.0 / d;
                 close_dx += dx * diff;
                 close_dy += dy * diff;
@@ -170,7 +174,35 @@ impl Boid {
         }
         self.velocity_x += (close_dx * AVOID_FACTOR) as i16;
         self.velocity_y += (close_dy * AVOID_FACTOR) as i16;
-        let max_speed = 10;
+    } 
+
+    fn align(&mut self, boids: &Vec<Boid>) {
+        let mut neighboring_boids: u16 = 0;
+        let mut vx_avg: f32 = 0.0;
+        let mut vy_avg: f32 = 0.0;
+        for other_boid in boids {
+            if self == other_boid {
+                continue;
+            }
+            let dx = (self.x - other_boid.x) as f32;
+            let dy = (self.y - other_boid.y) as f32;
+            let d = (dx * dx + dy * dy).sqrt();
+            if d <= SAFE_RADIUS {
+                vx_avg += other_boid.velocity_x as f32;
+                vy_avg += other_boid.velocity_y as f32;
+                neighboring_boids += 1;
+            }
+        }
+        if neighboring_boids > 0 {
+            vx_avg /= neighboring_boids as f32;
+            vy_avg /= neighboring_boids as f32;
+            self.velocity_x += (vx_avg  * MATCHING_FACTOR) as i16;
+            self.velocity_y += (vy_avg  * MATCHING_FACTOR) as i16;
+        }
+    }
+
+    fn speed_limit(&mut self) {
+        let max_speed = 20;
         if self.velocity_x > max_speed {
             self.velocity_x = max_speed;
         }
@@ -183,7 +215,7 @@ impl Boid {
         if self.velocity_y < -max_speed {
             self.velocity_y = -max_speed;
         }
-    } 
+    }
 }
 
 impl RenderNode for Boid {
