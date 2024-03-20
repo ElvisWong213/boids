@@ -4,11 +4,14 @@ use rand::Rng;
 
 const WIDTH: u32 = 1920;
 const HEIGHT: u32 = 1080;
-const SPEED: i16 = 5;
-const SIZE: i16 = 20;
-const AVOID_FACTOR: f32 = 1.0;
-const MATCHING_FACTOR: f32 = 0.5;
-const SAFE_RADIUS: f32 = 300.0;
+const SIZE: i16 = 10;
+const AVOID_FACTOR: f32 = 0.2;
+const MATCHING_FACTOR: f32 = 0.9;
+const CENTERING_FACTOR: f32 = 0.2;
+const SAFE_RADIUS: f32 = 50.0;
+const MAX_SPEED: i16 = 10;
+const MIN_SPEED: i16 = 5;
+const BORDER: i16 = 100;
 
 fn main() {
     let event_loop = EventLoop::new().unwrap();
@@ -34,7 +37,7 @@ fn main() {
     event_loop.set_control_flow(ControlFlow::Poll);
     event_loop.set_control_flow(ControlFlow::Wait);
 
-    world.spawn_random_boids(100);
+    world.spawn_random_boids(200);
 
     let _ = event_loop.run(move |event, elwt| {
         match event {
@@ -98,9 +101,9 @@ impl World {
 
     fn spawn_boids(&mut self, x: i16, y:i16) {
         let mut rng = rand::thread_rng();
-        let velocity_x = rng.gen_range(-SPEED..=SPEED);
+        let velocity_x = rng.gen_range(-MIN_SPEED..=MIN_SPEED);
         let range: [i16; 2] = [-1, 1];
-        let velocity_y = ((SPEED.pow(2) - velocity_x.pow(2)) as f32).sqrt() as i16 * range[rng.gen_range(0..=1)];
+        let velocity_y = ((MIN_SPEED.pow(2) - velocity_x.pow(2)) as f32).sqrt() as i16 * range[rng.gen_range(0..=1)];
         self.boids.push(Boid::new(x, y, SIZE, velocity_x, velocity_y, [255, 255, 255, 255]));
     }
 }
@@ -120,6 +123,8 @@ impl MovableMode for World {
         for boid in &mut self.boids {
             boid.separate(&copy_boids);
             boid.align(&copy_boids);
+            boid.cohesion(&copy_boids);
+            // boid.avoid_border();
             boid.speed_limit();
             boid.update();
         }
@@ -158,6 +163,7 @@ impl Boid {
     fn separate(&mut self, boids: &Vec<Boid>) {
         let mut close_dx: f32 = 0.0;
         let mut close_dy: f32 = 0.0;
+        let boid_radius: f32 = Boid::radius(self.velocity_x, self.velocity_y);
         for other_boid in boids {
             if self == other_boid {
                 continue;
@@ -166,10 +172,11 @@ impl Boid {
             let dx = (self.x - other_boid.x) as f32;
             let dy = (self.y - other_boid.y) as f32;
             let d = (dx * dx + dy * dy).sqrt();
-            if d <= SAFE_RADIUS {
-                let diff: f32 = 1.0 / d;
-                close_dx += dx * diff;
-                close_dy += dy * diff;
+            let other_boid_radius: f32 = Boid::radius(other_boid.velocity_x, other_boid.velocity_y);
+            if d <= SAFE_RADIUS && Boid::in_range(boid_radius, other_boid_radius) {
+                // let diff: f32 = 1.0 / d;
+                close_dx += dx;
+                close_dy += dy;
             }
         }
         self.velocity_x += (close_dx * AVOID_FACTOR) as i16;
@@ -180,6 +187,7 @@ impl Boid {
         let mut neighboring_boids: u16 = 0;
         let mut vx_avg: f32 = 0.0;
         let mut vy_avg: f32 = 0.0;
+        let boid_radius: f32 = Boid::radius(self.velocity_x, self.velocity_y);
         for other_boid in boids {
             if self == other_boid {
                 continue;
@@ -187,7 +195,8 @@ impl Boid {
             let dx = (self.x - other_boid.x) as f32;
             let dy = (self.y - other_boid.y) as f32;
             let d = (dx * dx + dy * dy).sqrt();
-            if d <= SAFE_RADIUS {
+            let other_boid_radius: f32 = Boid::radius(other_boid.velocity_x, other_boid.velocity_y);
+            if d <= SAFE_RADIUS * 2.0 && Boid::in_range(boid_radius, other_boid_radius) {
                 vx_avg += other_boid.velocity_x as f32;
                 vy_avg += other_boid.velocity_y as f32;
                 neighboring_boids += 1;
@@ -196,24 +205,115 @@ impl Boid {
         if neighboring_boids > 0 {
             vx_avg /= neighboring_boids as f32;
             vy_avg /= neighboring_boids as f32;
-            self.velocity_x += (vx_avg  * MATCHING_FACTOR) as i16;
-            self.velocity_y += (vy_avg  * MATCHING_FACTOR) as i16;
+            self.velocity_x += (vx_avg * MATCHING_FACTOR) as i16;
+            self.velocity_y += (vy_avg * MATCHING_FACTOR) as i16;
         }
     }
 
+    fn cohesion(&mut self, boids: &Vec<Boid>) {
+        let mut neighboring_boids: u16 = 0;
+        let mut x_avg: f32 = 0.0;
+        let mut y_avg: f32 = 0.0;
+        let boid_radius: f32 = Boid::radius(self.velocity_x, self.velocity_y);
+        for other_boid in boids {
+            if self == other_boid {
+                continue;
+            }
+            let dx = (self.x - other_boid.x) as f32;
+            let dy = (self.y - other_boid.y) as f32;
+            let d = (dx * dx + dy * dy).sqrt();
+            let other_boid_radius: f32 = Boid::radius(other_boid.velocity_x, other_boid.velocity_y);
+            if d <= SAFE_RADIUS * 2.0 && Boid::in_range(boid_radius, other_boid_radius) {
+                x_avg += other_boid.x as f32;
+                y_avg += other_boid.y as f32;
+                neighboring_boids += 1;
+            }
+        }
+        if neighboring_boids > 0 {
+            x_avg /= neighboring_boids as f32;
+            y_avg /= neighboring_boids as f32;
+            self.velocity_x += ((x_avg - self.x as f32) * CENTERING_FACTOR) as i16;
+            self.velocity_y += ((y_avg - self.y as f32) * CENTERING_FACTOR) as i16;
+        }
+        
+    }
+
+    fn avoid_border(&mut self) {
+        let turn: i16 = 100;
+        if self.x < BORDER {
+            if self.x == 0 {
+                self.velocity_x += turn;
+            } else {
+                self.velocity_x += turn / self.x;
+            }
+        }
+        if WIDTH as i16 - self.x < BORDER {
+            let diff = WIDTH as i16 - self.x;
+            if diff == 0 {
+                self.velocity_x -= turn;
+            } else {
+                self.velocity_x -= turn / diff;
+            }
+        }
+        if self.y < BORDER {
+            if self.y == 0 {
+                self.velocity_y += turn;
+            } else {
+                self.velocity_y += turn / self.y;
+            }
+        }
+        if HEIGHT as i16 - self.y < BORDER {
+            let diff = HEIGHT as i16 - self.y;
+            if diff == 0 {
+                self.velocity_y -= turn;
+            } else {
+                self.velocity_y -= turn / diff;
+            }
+        }
+    }
+
+    fn radius(vx: i16, vy: i16) -> f32 {
+        let rad = (vy as f32 / vx as f32).atan();
+        if vx >= 0 && vy >= 0 {
+            return rad;
+        }
+        if (vx < 0 && vy >= 0) || (vx < 0 && vy < 0) {
+            return 1.0 + rad;
+        }
+        2.0 + rad
+    }
+
+    fn in_range(base: f32, target: f32) -> bool {
+        let min = base + 0.75;
+        let mut max = base - 0.75;
+        if max < 0.0 {
+            max += 2.0;
+        }
+        if target <= min || target >= max {
+            return true;
+        }
+        false
+    }
+
     fn speed_limit(&mut self) {
-        let max_speed = 20;
-        if self.velocity_x > max_speed {
-            self.velocity_x = max_speed;
+        let speed = ((self.velocity_x * self.velocity_x + self.velocity_y * self.velocity_y) as f32).sqrt();
+        if speed == 0.0 {
+            let mut rng = rand::thread_rng();
+            let velocity_x = rng.gen_range(-MIN_SPEED..=MIN_SPEED);
+            let range: [i16; 2] = [-1, 1];
+            let velocity_y = ((MIN_SPEED.pow(2) - velocity_x.pow(2)) as f32).sqrt() as i16 * range[rng.gen_range(0..=1)];
+ 
+            self.velocity_x = velocity_x;
+            self.velocity_y = velocity_y;
+            return;
         }
-        if self.velocity_x < -max_speed {
-            self.velocity_x = -max_speed;
-        }
-        if self.velocity_y > max_speed {
-            self.velocity_y = max_speed;
-        }
-        if self.velocity_y < -max_speed {
-            self.velocity_y = -max_speed;
+        if (speed as i16) > MAX_SPEED {
+            self.velocity_x = ((self.velocity_x as f32 / speed) * MAX_SPEED as f32) as i16;
+            self.velocity_y = ((self.velocity_y as f32 / speed) * MAX_SPEED as f32) as i16;
+        } 
+        if (speed as i16) < MIN_SPEED {
+            self.velocity_x = ((self.velocity_x as f32 / speed) * MIN_SPEED as f32) as i16;
+            self.velocity_y = ((self.velocity_y as f32 / speed) * MIN_SPEED as f32) as i16;
         }
     }
 }
