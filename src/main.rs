@@ -4,14 +4,20 @@ use rand::Rng;
 
 const WIDTH: u32 = 1920;
 const HEIGHT: u32 = 1080;
-const SIZE: i16 = 10;
-const AVOID_FACTOR: f32 = 0.2;
-const MATCHING_FACTOR: f32 = 0.9;
-const CENTERING_FACTOR: f32 = 0.2;
+const SIZE: i16 = 5;
+const AVOID_FACTOR: f32 = 0.1;
+const MATCHING_FACTOR: f32 = 0.25;
+const CENTERING_FACTOR: f32 = 0.25;
 const SAFE_RADIUS: f32 = 50.0;
-const MAX_SPEED: i16 = 10;
+const MAX_SPEED: i16 = 25;
 const MIN_SPEED: i16 = 5;
-const BORDER: i16 = 100;
+const NUMBER_OF_BOIDS: u16 = 200;
+
+const LEFT_MARGIN: i16 = 200;
+const RIGHT_MARGIN: i16 = WIDTH as i16 - 200;
+const TOP_MARGIN: i16 = 100;
+const BOTTOM_MARGIN: i16 = HEIGHT as i16 - 100;
+const TURN_FACTOR: i16 = 3;
 
 fn main() {
     let event_loop = EventLoop::new().unwrap();
@@ -37,7 +43,7 @@ fn main() {
     event_loop.set_control_flow(ControlFlow::Poll);
     event_loop.set_control_flow(ControlFlow::Wait);
 
-    world.spawn_random_boids(200);
+    world.spawn_random_boids(NUMBER_OF_BOIDS);
 
     let _ = event_loop.run(move |event, elwt| {
         match event {
@@ -124,7 +130,7 @@ impl MovableMode for World {
             boid.separate(&copy_boids);
             boid.align(&copy_boids);
             boid.cohesion(&copy_boids);
-            // boid.avoid_border();
+            boid.avoid_border();
             boid.speed_limit();
             boid.update();
         }
@@ -196,7 +202,7 @@ impl Boid {
             let dy = (self.y - other_boid.y) as f32;
             let d = (dx * dx + dy * dy).sqrt();
             let other_boid_radius: f32 = Boid::radius(other_boid.velocity_x, other_boid.velocity_y);
-            if d <= SAFE_RADIUS * 2.0 && Boid::in_range(boid_radius, other_boid_radius) {
+            if d <= SAFE_RADIUS * 1.5 && Boid::in_range(boid_radius, other_boid_radius) {
                 vx_avg += other_boid.velocity_x as f32;
                 vy_avg += other_boid.velocity_y as f32;
                 neighboring_boids += 1;
@@ -223,7 +229,7 @@ impl Boid {
             let dy = (self.y - other_boid.y) as f32;
             let d = (dx * dx + dy * dy).sqrt();
             let other_boid_radius: f32 = Boid::radius(other_boid.velocity_x, other_boid.velocity_y);
-            if d <= SAFE_RADIUS * 2.0 && Boid::in_range(boid_radius, other_boid_radius) {
+            if d <= SAFE_RADIUS * 1.5 && Boid::in_range(boid_radius, other_boid_radius) {
                 x_avg += other_boid.x as f32;
                 y_avg += other_boid.y as f32;
                 neighboring_boids += 1;
@@ -239,36 +245,17 @@ impl Boid {
     }
 
     fn avoid_border(&mut self) {
-        let turn: i16 = 100;
-        if self.x < BORDER {
-            if self.x == 0 {
-                self.velocity_x += turn;
-            } else {
-                self.velocity_x += turn / self.x;
-            }
+        if self.x < LEFT_MARGIN {
+            self.velocity_x += TURN_FACTOR;
         }
-        if WIDTH as i16 - self.x < BORDER {
-            let diff = WIDTH as i16 - self.x;
-            if diff == 0 {
-                self.velocity_x -= turn;
-            } else {
-                self.velocity_x -= turn / diff;
-            }
+        if self.x > RIGHT_MARGIN {
+            self.velocity_x -= TURN_FACTOR;
         }
-        if self.y < BORDER {
-            if self.y == 0 {
-                self.velocity_y += turn;
-            } else {
-                self.velocity_y += turn / self.y;
-            }
+        if self.y < TOP_MARGIN {
+            self.velocity_y += TURN_FACTOR;
         }
-        if HEIGHT as i16 - self.y < BORDER {
-            let diff = HEIGHT as i16 - self.y;
-            if diff == 0 {
-                self.velocity_y -= turn;
-            } else {
-                self.velocity_y -= turn / diff;
-            }
+        if self.y > BOTTOM_MARGIN {
+            self.velocity_y -= TURN_FACTOR;
         }
     }
 
