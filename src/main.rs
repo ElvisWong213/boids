@@ -4,20 +4,20 @@ use rand::Rng;
 
 const WIDTH: u32 = 1920;
 const HEIGHT: u32 = 1080;
-const SIZE: i16 = 5;
+const SIZE: i16 = 10;
 const AVOID_FACTOR: f32 = 0.1;
 const MATCHING_FACTOR: f32 = 0.25;
 const CENTERING_FACTOR: f32 = 0.25;
 const SAFE_RADIUS: f32 = 50.0;
 const MAX_SPEED: i16 = 25;
 const MIN_SPEED: i16 = 5;
-const NUMBER_OF_BOIDS: u16 = 200;
+const NUMBER_OF_BOIDS: u16 = 300;
 
 const LEFT_MARGIN: i16 = 200;
 const RIGHT_MARGIN: i16 = WIDTH as i16 - 200;
 const TOP_MARGIN: i16 = 100;
 const BOTTOM_MARGIN: i16 = HEIGHT as i16 - 100;
-const TURN_FACTOR: i16 = 3;
+const TURN_FACTOR: i16 = 8;
 
 fn main() {
     let event_loop = EventLoop::new().unwrap();
@@ -112,25 +112,21 @@ impl World {
         let velocity_y = ((MIN_SPEED.pow(2) - velocity_x.pow(2)) as f32).sqrt() as i16 * range[rng.gen_range(0..=1)];
         self.boids.push(Boid::new(x, y, SIZE, velocity_x, velocity_y, [255, 255, 255, 255]));
     }
-}
 
-impl RenderNode for World {
-   fn draw(&self, frame: &mut [u8]) {
-       self.background.draw(frame);
-       for boid in &self.boids {
-           boid.draw(frame)
-       }
-   }
-}
+    fn draw(&self, frame: &mut [u8]) {
+        self.background.draw(frame);
+        for boid in &self.boids {
+            boid.draw(frame)
+        }
+    }
 
-impl MovableMode for World {
     fn update(&mut self) {
         let copy_boids: Vec<Boid> = self.boids.to_vec();
         for boid in &mut self.boids {
-            boid.separate(&copy_boids);
-            boid.align(&copy_boids);
-            boid.cohesion(&copy_boids);
-            boid.avoid_border();
+            boid.separate(&copy_boids, AVOID_FACTOR);
+            boid.align(&copy_boids, MATCHING_FACTOR);
+            boid.cohesion(&copy_boids, CENTERING_FACTOR);
+            boid.avoid_border(TURN_FACTOR);
             boid.speed_limit();
             boid.update();
         }
@@ -140,9 +136,10 @@ impl MovableMode for World {
 trait RenderNode {
     fn draw(&self, _frame: &mut[u8]) {}
 }
- trait MovableMode {
-     fn update(&mut self) {}
- }
+
+trait MovableMode {
+    fn update(&mut self) {}
+}
 
 #[derive(Clone, PartialEq)]
 struct Boid {
@@ -166,7 +163,7 @@ impl Boid {
         }
     }
 
-    fn separate(&mut self, boids: &Vec<Boid>) {
+    fn separate(&mut self, boids: &Vec<Boid>, avoid_factor: f32) {
         let mut close_dx: f32 = 0.0;
         let mut close_dy: f32 = 0.0;
         let boid_radius: f32 = Boid::radius(self.velocity_x, self.velocity_y);
@@ -180,16 +177,15 @@ impl Boid {
             let d = (dx * dx + dy * dy).sqrt();
             let other_boid_radius: f32 = Boid::radius(other_boid.velocity_x, other_boid.velocity_y);
             if d <= SAFE_RADIUS && Boid::in_range(boid_radius, other_boid_radius) {
-                // let diff: f32 = 1.0 / d;
                 close_dx += dx;
                 close_dy += dy;
             }
         }
-        self.velocity_x += (close_dx * AVOID_FACTOR) as i16;
-        self.velocity_y += (close_dy * AVOID_FACTOR) as i16;
+        self.velocity_x += (close_dx * avoid_factor) as i16;
+        self.velocity_y += (close_dy * avoid_factor) as i16;
     } 
 
-    fn align(&mut self, boids: &Vec<Boid>) {
+    fn align(&mut self, boids: &Vec<Boid>, matching_factor: f32) {
         let mut neighboring_boids: u16 = 0;
         let mut vx_avg: f32 = 0.0;
         let mut vy_avg: f32 = 0.0;
@@ -211,12 +207,12 @@ impl Boid {
         if neighboring_boids > 0 {
             vx_avg /= neighboring_boids as f32;
             vy_avg /= neighboring_boids as f32;
-            self.velocity_x += (vx_avg * MATCHING_FACTOR) as i16;
-            self.velocity_y += (vy_avg * MATCHING_FACTOR) as i16;
+            self.velocity_x += (vx_avg * matching_factor) as i16;
+            self.velocity_y += (vy_avg * matching_factor) as i16;
         }
     }
 
-    fn cohesion(&mut self, boids: &Vec<Boid>) {
+    fn cohesion(&mut self, boids: &Vec<Boid>, centering_factor: f32) {
         let mut neighboring_boids: u16 = 0;
         let mut x_avg: f32 = 0.0;
         let mut y_avg: f32 = 0.0;
@@ -238,24 +234,24 @@ impl Boid {
         if neighboring_boids > 0 {
             x_avg /= neighboring_boids as f32;
             y_avg /= neighboring_boids as f32;
-            self.velocity_x += ((x_avg - self.x as f32) * CENTERING_FACTOR) as i16;
-            self.velocity_y += ((y_avg - self.y as f32) * CENTERING_FACTOR) as i16;
+            self.velocity_x += ((x_avg - self.x as f32) * centering_factor) as i16;
+            self.velocity_y += ((y_avg - self.y as f32) * centering_factor) as i16;
         }
         
     }
 
-    fn avoid_border(&mut self) {
+    fn avoid_border(&mut self, turn_factor: i16) {
         if self.x < LEFT_MARGIN {
-            self.velocity_x += TURN_FACTOR;
+            self.velocity_x += turn_factor;
         }
         if self.x > RIGHT_MARGIN {
-            self.velocity_x -= TURN_FACTOR;
+            self.velocity_x -= turn_factor;
         }
         if self.y < TOP_MARGIN {
-            self.velocity_y += TURN_FACTOR;
+            self.velocity_y += turn_factor;
         }
         if self.y > BOTTOM_MARGIN {
-            self.velocity_y -= TURN_FACTOR;
+            self.velocity_y -= turn_factor;
         }
     }
 
@@ -341,13 +337,6 @@ impl MovableMode for Boid {
         if self.y > HEIGHT as i16 {
             self.y = 0;
         }
-        // if self.x < 0 || self.x + self.size > WIDTH as i16 {
-        //     self.velocity_x *= -1;
-        // }
-        // if self.y < 0 || self.y + self.size > HEIGHT as i16 {
-        //     self.velocity_y *= -1;
-        // }
-
         self.x += self.velocity_x;
         self.y += self.velocity_y;
     }
