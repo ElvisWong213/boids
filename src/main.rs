@@ -3,14 +3,15 @@ mod node;
 mod background;
 
 use pixels::{self, Pixels, SurfaceTexture};
-use winit::{self, dpi::{PhysicalSize}, event::{ElementState, Event, MouseButton, WindowEvent}, event_loop::{ControlFlow, EventLoop}, window::WindowBuilder};
+use winit::{self, dpi::{PhysicalSize}, event::{ElementState, Event, MouseButton, WindowEvent}, event_loop::{EventLoop}, window::WindowBuilder};
 use rand::Rng;
+use winit::dpi::PhysicalPosition;
 use boid::Boid;
 use node::{ RenderNode, MovableMode };
 use background::Background;
 
-const WIDTH: u32 = 1920;
-const HEIGHT: u32 = 1080;
+const WIDTH: u32 = 1280;
+const HEIGHT: u32 = 720;
 const SIZE: i16 = 10;
 const AVOID_FACTOR: f32 = 0.1;
 const MATCHING_FACTOR: f32 = 0.25;
@@ -43,9 +44,7 @@ fn main() {
 
     let mut world = World::new();
     let mut mouse_press: bool = false;
-
-    event_loop.set_control_flow(ControlFlow::Poll);
-    event_loop.set_control_flow(ControlFlow::Wait);
+    let mut mouse_position: PhysicalPosition<f64> = PhysicalPosition::new(0.0, 0.0);
 
     world.spawn_random_boids(NUMBER_OF_BOIDS);
 
@@ -67,19 +66,17 @@ fn main() {
                 }
             },
             Event::WindowEvent { event: WindowEvent::MouseInput{ button, state, .. }, .. } => {
-                if mouse_press == true {
-                    mouse_press = false;
-                }
                 if button == MouseButton::Left && state == ElementState::Pressed && mouse_press == false {
                     mouse_press = true;
+                    println!("{:}, {:}", mouse_position.x, mouse_position.y);
+                    world.spawn_boids(mouse_position.x as i16, mouse_position.y as i16);
+                }
+                if button == MouseButton::Left && state == ElementState::Released && mouse_press == true {
+                    mouse_press = false;
                 }
             },
             Event::WindowEvent { event: WindowEvent::CursorMoved { position, .. }, .. } => {
-                if mouse_press == true {
-                    println!("{:}, {:}", position.x, position.y);
-                    world.spawn_boids(position.x as i16, position.y as i16);
-                    mouse_press = false;
-                }
+                mouse_position = position;
             }
             _ => ()
         }
