@@ -1,6 +1,13 @@
+mod boid;
+mod node;
+mod background;
+
 use pixels::{self, Pixels, SurfaceTexture};
 use winit::{self, dpi::{PhysicalSize}, event::{ElementState, Event, MouseButton, WindowEvent}, event_loop::{ControlFlow, EventLoop}, window::WindowBuilder};
 use rand::Rng;
+use boid::Boid;
+use node::{ RenderNode, MovableMode };
+use background::Background;
 
 const WIDTH: u32 = 1920;
 const HEIGHT: u32 = 1080;
@@ -13,10 +20,7 @@ const MAX_SPEED: i16 = 25;
 const MIN_SPEED: i16 = 5;
 const NUMBER_OF_BOIDS: u16 = 300;
 
-const LEFT_MARGIN: i16 = 200;
-const RIGHT_MARGIN: i16 = WIDTH as i16 - 200;
-const TOP_MARGIN: i16 = 100;
-const BOTTOM_MARGIN: i16 = HEIGHT as i16 - 100;
+const MARGIN: i16 = 100;
 const TURN_FACTOR: i16 = 8;
 
 fn main() {
@@ -114,250 +118,21 @@ impl World {
     }
 
     fn draw(&self, frame: &mut [u8]) {
-        self.background.draw(frame);
+        self.background.draw(frame, WIDTH, HEIGHT);
         for boid in &self.boids {
-            boid.draw(frame)
+            boid.draw(frame, WIDTH, HEIGHT)
         }
     }
 
     fn update(&mut self) {
         let copy_boids: Vec<Boid> = self.boids.to_vec();
         for boid in &mut self.boids {
-            boid.separate(&copy_boids, AVOID_FACTOR);
-            boid.align(&copy_boids, MATCHING_FACTOR);
-            boid.cohesion(&copy_boids, CENTERING_FACTOR);
-            boid.avoid_border(TURN_FACTOR);
-            boid.speed_limit();
-            boid.update();
+            boid.separate(&copy_boids, AVOID_FACTOR, SAFE_RADIUS);
+            boid.align(&copy_boids, MATCHING_FACTOR, SAFE_RADIUS);
+            boid.cohesion(&copy_boids, CENTERING_FACTOR, SAFE_RADIUS);
+            boid.avoid_border(TURN_FACTOR, MARGIN, WIDTH, HEIGHT);
+            boid.speed_limit(MAX_SPEED, MIN_SPEED);
+            boid.update(WIDTH, HEIGHT, SIZE);
         }
-    }
-}
-
-trait RenderNode {
-    fn draw(&self, _frame: &mut[u8]) {}
-}
-
-trait MovableMode {
-    fn update(&mut self) {}
-}
-
-#[derive(Clone, PartialEq)]
-struct Boid {
-    x: i16,
-    y: i16,
-    size: i16,
-    velocity_x: i16,
-    velocity_y: i16,
-    color: [u8; 4],
-}
-
-impl Boid {
-    fn new(x: i16, y: i16, size: i16, velocity_x: i16, velocity_y: i16, color: [u8; 4]) -> Self {
-        Self {
-            x, 
-            y, 
-            size,
-            velocity_x,
-            velocity_y,
-            color,
-        }
-    }
-
-    fn separate(&mut self, boids: &Vec<Boid>, avoid_factor: f32) {
-        let mut close_dx: f32 = 0.0;
-        let mut close_dy: f32 = 0.0;
-        let boid_radius: f32 = Boid::radius(self.velocity_x, self.velocity_y);
-        for other_boid in boids {
-            if self == other_boid {
-                continue;
-            }
-            
-            let dx = (self.x - other_boid.x) as f32;
-            let dy = (self.y - other_boid.y) as f32;
-            let d = (dx * dx + dy * dy).sqrt();
-            let other_boid_radius: f32 = Boid::radius(other_boid.velocity_x, other_boid.velocity_y);
-            if d <= SAFE_RADIUS && Boid::in_range(boid_radius, other_boid_radius) {
-                close_dx += dx;
-                close_dy += dy;
-            }
-        }
-        self.velocity_x += (close_dx * avoid_factor) as i16;
-        self.velocity_y += (close_dy * avoid_factor) as i16;
-    } 
-
-    fn align(&mut self, boids: &Vec<Boid>, matching_factor: f32) {
-        let mut neighboring_boids: u16 = 0;
-        let mut vx_avg: f32 = 0.0;
-        let mut vy_avg: f32 = 0.0;
-        let boid_radius: f32 = Boid::radius(self.velocity_x, self.velocity_y);
-        for other_boid in boids {
-            if self == other_boid {
-                continue;
-            }
-            let dx = (self.x - other_boid.x) as f32;
-            let dy = (self.y - other_boid.y) as f32;
-            let d = (dx * dx + dy * dy).sqrt();
-            let other_boid_radius: f32 = Boid::radius(other_boid.velocity_x, other_boid.velocity_y);
-            if d <= SAFE_RADIUS * 1.5 && Boid::in_range(boid_radius, other_boid_radius) {
-                vx_avg += other_boid.velocity_x as f32;
-                vy_avg += other_boid.velocity_y as f32;
-                neighboring_boids += 1;
-            }
-        }
-        if neighboring_boids > 0 {
-            vx_avg /= neighboring_boids as f32;
-            vy_avg /= neighboring_boids as f32;
-            self.velocity_x += (vx_avg * matching_factor) as i16;
-            self.velocity_y += (vy_avg * matching_factor) as i16;
-        }
-    }
-
-    fn cohesion(&mut self, boids: &Vec<Boid>, centering_factor: f32) {
-        let mut neighboring_boids: u16 = 0;
-        let mut x_avg: f32 = 0.0;
-        let mut y_avg: f32 = 0.0;
-        let boid_radius: f32 = Boid::radius(self.velocity_x, self.velocity_y);
-        for other_boid in boids {
-            if self == other_boid {
-                continue;
-            }
-            let dx = (self.x - other_boid.x) as f32;
-            let dy = (self.y - other_boid.y) as f32;
-            let d = (dx * dx + dy * dy).sqrt();
-            let other_boid_radius: f32 = Boid::radius(other_boid.velocity_x, other_boid.velocity_y);
-            if d <= SAFE_RADIUS * 1.5 && Boid::in_range(boid_radius, other_boid_radius) {
-                x_avg += other_boid.x as f32;
-                y_avg += other_boid.y as f32;
-                neighboring_boids += 1;
-            }
-        }
-        if neighboring_boids > 0 {
-            x_avg /= neighboring_boids as f32;
-            y_avg /= neighboring_boids as f32;
-            self.velocity_x += ((x_avg - self.x as f32) * centering_factor) as i16;
-            self.velocity_y += ((y_avg - self.y as f32) * centering_factor) as i16;
-        }
-        
-    }
-
-    fn avoid_border(&mut self, turn_factor: i16) {
-        if self.x < LEFT_MARGIN {
-            self.velocity_x += turn_factor;
-        }
-        if self.x > RIGHT_MARGIN {
-            self.velocity_x -= turn_factor;
-        }
-        if self.y < TOP_MARGIN {
-            self.velocity_y += turn_factor;
-        }
-        if self.y > BOTTOM_MARGIN {
-            self.velocity_y -= turn_factor;
-        }
-    }
-
-    fn radius(vx: i16, vy: i16) -> f32 {
-        let rad = (vy as f32 / vx as f32).atan();
-        if vx >= 0 && vy >= 0 {
-            return rad;
-        }
-        if (vx < 0 && vy >= 0) || (vx < 0 && vy < 0) {
-            return 1.0 + rad;
-        }
-        2.0 + rad
-    }
-
-    fn in_range(base: f32, target: f32) -> bool {
-        let min = base + 0.75;
-        let mut max = base - 0.75;
-        if max < 0.0 {
-            max += 2.0;
-        }
-        if target <= min || target >= max {
-            return true;
-        }
-        false
-    }
-
-    fn speed_limit(&mut self) {
-        let speed = ((self.velocity_x * self.velocity_x + self.velocity_y * self.velocity_y) as f32).sqrt();
-        if speed == 0.0 {
-            let mut rng = rand::thread_rng();
-            let velocity_x = rng.gen_range(-MIN_SPEED..=MIN_SPEED);
-            let range: [i16; 2] = [-1, 1];
-            let velocity_y = ((MIN_SPEED.pow(2) - velocity_x.pow(2)) as f32).sqrt() as i16 * range[rng.gen_range(0..=1)];
- 
-            self.velocity_x = velocity_x;
-            self.velocity_y = velocity_y;
-            return;
-        }
-        if (speed as i16) > MAX_SPEED {
-            self.velocity_x = ((self.velocity_x as f32 / speed) * MAX_SPEED as f32) as i16;
-            self.velocity_y = ((self.velocity_y as f32 / speed) * MAX_SPEED as f32) as i16;
-        } 
-        if (speed as i16) < MIN_SPEED {
-            self.velocity_x = ((self.velocity_x as f32 / speed) * MIN_SPEED as f32) as i16;
-            self.velocity_y = ((self.velocity_y as f32 / speed) * MIN_SPEED as f32) as i16;
-        }
-    }
-}
-
-impl RenderNode for Boid {
-    fn draw(&self, frame: &mut[u8]) {
-        for i in 0..self.size {
-            for j in 0..self.size {
-                let x = (self.x + j) as usize;
-                let y = (self.y + i) as usize;
-                if x >= WIDTH as usize || y >= HEIGHT as usize{
-                    continue;
-                }
-                let start: usize = y.wrapping_mul(WIDTH as usize).wrapping_add(x).wrapping_mul(4);
-                for count in 0 .. 4 {
-                    let index = start + count;
-                    if index >= frame.len() {
-                        break;
-                    }
-                    frame[index] = self.color[count];
-                }
-            }
-        }
-    }
-}
-
-impl MovableMode for Boid {
-    fn update(&mut self) {
-        if self.x < -SIZE {
-            self.x = WIDTH as i16;
-        }
-        if self.x > WIDTH as i16 {
-            self.x = 0;
-        }
-        if self.y < -SIZE {
-            self.y = HEIGHT as i16;
-        }
-        if self.y > HEIGHT as i16 {
-            self.y = 0;
-        }
-        self.x += self.velocity_x;
-        self.y += self.velocity_y;
-    }
-}
-
-struct Background {
-    color: [u8; 4],
-}
-
-impl Background {
-    fn new(color: [u8; 4]) -> Self {
-        Self {
-            color,
-        }
-    }
-}
-
-impl RenderNode for Background {
-    fn draw(&self, frame: &mut[u8]) {
-       for pixel in frame.chunks_exact_mut(4) {
-           pixel.copy_from_slice(&self.color);
-       } 
     }
 }
