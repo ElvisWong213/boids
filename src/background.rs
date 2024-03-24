@@ -1,11 +1,11 @@
 use crate::node::RenderNode;
 
-pub struct Background {
+pub(crate) struct Background {
     color: [u8; 4],
 }
 
 impl Background {
-    pub fn new(color: [u8; 4]) -> Self {
+    pub(crate) fn new(color: [u8; 4]) -> Self {
         Self {
             color,
         }

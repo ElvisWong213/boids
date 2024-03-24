@@ -3,7 +3,7 @@ use node::{ RenderNode, MovableMode };
 use crate::node;
 
 #[derive(Clone, PartialEq)]
-pub struct Boid {
+pub(crate) struct Boid {
     x: i16,
     y: i16,
     size: i16,
@@ -13,7 +13,7 @@ pub struct Boid {
 }
 
 impl Boid {
-    pub fn new(x: i16, y: i16, size: i16, velocity_x: i16, velocity_y: i16, color: [u8; 4]) -> Self {
+    pub(crate) fn new(x: i16, y: i16, size: i16, velocity_x: i16, velocity_y: i16, color: [u8; 4]) -> Self {
         Self {
             x,
             y,
@@ -24,7 +24,7 @@ impl Boid {
         }
     }
 
-    pub fn separate(&mut self, boids: &Vec<Boid>, avoid_factor: f32, save_radius: f32) {
+    pub(crate) fn separate(&mut self, boids: &Vec<Boid>, avoid_factor: f32, save_radius: f32) {
         let mut close_dx: f32 = 0.0;
         let mut close_dy: f32 = 0.0;
         let boid_radius: f32 = Boid::radius(self.velocity_x, self.velocity_y);
@@ -46,7 +46,7 @@ impl Boid {
         self.velocity_y += (close_dy * avoid_factor) as i16;
     }
 
-    pub fn align(&mut self, boids: &Vec<Boid>, matching_factor: f32, save_radius: f32) {
+    pub(crate) fn align(&mut self, boids: &Vec<Boid>, matching_factor: f32, save_radius: f32) {
         let mut neighboring_boids: u16 = 0;
         let mut vx_avg: f32 = 0.0;
         let mut vy_avg: f32 = 0.0;
@@ -73,7 +73,7 @@ impl Boid {
         }
     }
 
-    pub fn cohesion(&mut self, boids: &Vec<Boid>, centering_factor: f32, save_radius: f32) {
+    pub(crate) fn cohesion(&mut self, boids: &Vec<Boid>, centering_factor: f32, save_radius: f32) {
         let mut neighboring_boids: u16 = 0;
         let mut x_avg: f32 = 0.0;
         let mut y_avg: f32 = 0.0;
@@ -101,7 +101,7 @@ impl Boid {
 
     }
 
-    pub fn avoid_border(&mut self, turn_factor: i16, margin: i16, width: u32, height: u32) {
+    pub(crate) fn avoid_border(&mut self, turn_factor: i16, margin: i16, width: u32, height: u32) {
         if self.x < margin {
             self.velocity_x += turn_factor;
         }
@@ -116,7 +116,7 @@ impl Boid {
         }
     }
 
-    pub fn radius(vx: i16, vy: i16) -> f32 {
+    pub(crate) fn radius(vx: i16, vy: i16) -> f32 {
         let rad = (vy as f32 / vx as f32).atan();
         if vx >= 0 && vy >= 0 {
             return rad;
@@ -127,7 +127,7 @@ impl Boid {
         2.0 + rad
     }
 
-    pub fn in_range(base: f32, target: f32) -> bool {
+    pub(crate) fn in_range(base: f32, target: f32) -> bool {
         let min = base + 0.75;
         let mut max = base - 0.75;
         if max < 0.0 {
@@ -139,7 +139,7 @@ impl Boid {
         false
     }
 
-    pub fn speed_limit(&mut self, max_speed: i16, min_speed: i16) {
+    pub(crate) fn speed_limit(&mut self, max_speed: i16, min_speed: i16) {
         let speed = ((self.velocity_x * self.velocity_x + self.velocity_y * self.velocity_y) as f32).sqrt();
         if speed == 0.0 {
             let mut rng = rand::thread_rng();
