@@ -60,7 +60,12 @@ fn main() {
             },
             Event::WindowEvent { event: WindowEvent::RedrawRequested, ..} => {
                 world.draw(pixels.frame_mut());
-                if let Err(error) = pixels.render() {
+                let render_result = pixels.render_with(|encoder, render_target, context| {
+                    context.scaling_renderer.render(encoder, render_target);
+                    Ok(())
+                });
+
+                if let Err(error) = render_result {
                     elwt.exit();
                     eprint!("{error}");
                 }
@@ -77,6 +82,11 @@ fn main() {
             },
             Event::WindowEvent { event: WindowEvent::CursorMoved { position, .. }, .. } => {
                 mouse_position = position;
+            },
+            Event::WindowEvent { event: WindowEvent::Resized(new_size), .. } => {
+                if new_size.width > 0 && new_size.height > 0 {
+                    pixels.resize_surface(new_size.width, new_size.height).unwrap();
+                }
             }
             _ => ()
         }
@@ -91,8 +101,8 @@ struct World {
 impl World {
     fn new() -> Self {
         Self {
-           background: Background::new([0, 0, 0, 0]),
-           boids: Vec::new(),
+            background: Background::new([0, 0, 0, 0]),
+            boids: Vec::new(),
         }
     }
 
