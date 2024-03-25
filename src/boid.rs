@@ -140,7 +140,9 @@ impl Boid {
     }
 
     pub(crate) fn speed_limit(&mut self, max_speed: i16, min_speed: i16) {
-        let speed = ((self.velocity_x * self.velocity_x + self.velocity_y * self.velocity_y) as f32).sqrt();
+        let x = self.velocity_x.wrapping_mul(self.velocity_x);
+        let y = self.velocity_y.wrapping_mul(self.velocity_y);
+        let speed = ((x.wrapping_add(y)) as f32).sqrt();
         if speed == 0.0 {
             let mut rng = rand::thread_rng();
             let velocity_x = rng.gen_range(-min_speed..=min_speed);
@@ -185,14 +187,14 @@ impl RenderNode for Boid {
 }
 
 impl MovableMode for Boid {
-    fn update(&mut self, width: u32, height: u32, size: i16) {
-        if self.x < -size {
+    fn update(&mut self, width: u32, height: u32) {
+        if self.x < -self.size {
             self.x = width as i16;
         }
         if self.x > width as i16 {
             self.x = 0;
         }
-        if self.y < -size {
+        if self.y < -self.size {
             self.y = height as i16;
         }
         if self.y > height as i16 {

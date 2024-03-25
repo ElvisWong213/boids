@@ -3,5 +3,5 @@ pub(crate) trait RenderNode {
 }
 
 pub(crate) trait MovableMode {
-    fn update(&mut self, _width: u32, _height: u32, _size: i16) {}
+    fn update(&mut self, _width: u32, _height: u32) {}
 }
