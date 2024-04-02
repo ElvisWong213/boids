@@ -22,3 +22,5 @@ cargo run
 
 ## Screenshot
 
+https://github.com/ElvisWong213/boids/assets/40566101/65a25120-7573-4868-9c28-85e971eb1ecd
+
