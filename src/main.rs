@@ -112,6 +112,7 @@ struct World {
     matching_factor: f32,
     centering_factor: f32,
     safe_radius: f32,
+    vision_radius: f32,
     max_speed: i16,
     min_speed: i16,
     margin: i16,
@@ -128,6 +129,7 @@ impl World {
             matching_factor: 0.25,
             centering_factor: 0.25,
             safe_radius: 50.0,
+            vision_radius: 100.0,
             max_speed: 25,
             min_speed: 5,
             margin: 100,
@@ -165,8 +167,8 @@ impl World {
         let copy_boids: Vec<Boid> = self.boids.to_vec();
         for boid in &mut self.boids {
             boid.separate(&copy_boids, self.avoid_factor, self.safe_radius);
-            boid.align(&copy_boids, self.matching_factor, self.safe_radius);
-            boid.cohesion(&copy_boids, self.centering_factor, self.safe_radius);
+            boid.align(&copy_boids, self.matching_factor, self.vision_radius);
+            boid.cohesion(&copy_boids, self.centering_factor, self.vision_radius);
             boid.avoid_border(self.turn_factor, self.margin, WIDTH, HEIGHT);
             boid.bias(self.bias_factor);
             boid.speed_limit(self.max_speed, self.min_speed);

@@ -22,10 +22,11 @@ impl Boid {
             velocity_x,
             velocity_y,
             color,
+            group,
         }
     }
 
-    pub(crate) fn separate(&mut self, boids: &Vec<Boid>, avoid_factor: f32, save_radius: f32) {
+    pub(crate) fn separate(&mut self, boids: &Vec<Boid>, avoid_factor: f32, safe_radius: f32) {
         let mut close_dx: f32 = 0.0;
         let mut close_dy: f32 = 0.0;
         let boid_radius: f32 = Boid::radius(self.velocity_x, self.velocity_y);
@@ -38,7 +39,7 @@ impl Boid {
             let dy = (self.y - other_boid.y) as f32;
             let d = (dx * dx + dy * dy).sqrt();
             let other_boid_radius: f32 = Boid::radius(other_boid.velocity_x, other_boid.velocity_y);
-            if d <= save_radius && Boid::in_range(boid_radius, other_boid_radius) {
+            if d <= safe_radius && Boid::in_range(boid_radius, other_boid_radius) {
                 close_dx += dx;
                 close_dy += dy;
             }
@@ -47,7 +48,7 @@ impl Boid {
         self.velocity_y += (close_dy * avoid_factor) as i16;
     }
 
-    pub(crate) fn align(&mut self, boids: &Vec<Boid>, matching_factor: f32, save_radius: f32) {
+    pub(crate) fn align(&mut self, boids: &Vec<Boid>, matching_factor: f32, vision_radius: f32) {
         let mut neighboring_boids: u16 = 0;
         let mut vx_avg: f32 = 0.0;
         let mut vy_avg: f32 = 0.0;
@@ -60,7 +61,7 @@ impl Boid {
             let dy = (self.y - other_boid.y) as f32;
             let d = (dx * dx + dy * dy).sqrt();
             let other_boid_radius: f32 = Boid::radius(other_boid.velocity_x, other_boid.velocity_y);
-            if d <= save_radius * 1.5 && Boid::in_range(boid_radius, other_boid_radius) {
+            if d <= vision_radius && Boid::in_range(boid_radius, other_boid_radius) {
                 vx_avg += other_boid.velocity_x as f32;
                 vy_avg += other_boid.velocity_y as f32;
                 neighboring_boids += 1;
@@ -74,7 +75,7 @@ impl Boid {
         }
     }
 
-    pub(crate) fn cohesion(&mut self, boids: &Vec<Boid>, centering_factor: f32, save_radius: f32) {
+    pub(crate) fn cohesion(&mut self, boids: &Vec<Boid>, centering_factor: f32, vision_radius: f32) {
         let mut neighboring_boids: u16 = 0;
         let mut x_avg: f32 = 0.0;
         let mut y_avg: f32 = 0.0;
@@ -87,7 +88,7 @@ impl Boid {
             let dy = (self.y - other_boid.y) as f32;
             let d = (dx * dx + dy * dy).sqrt();
             let other_boid_radius: f32 = Boid::radius(other_boid.velocity_x, other_boid.velocity_y);
-            if d <= save_radius * 1.5 && Boid::in_range(boid_radius, other_boid_radius) {
+            if d <= vision_radius && Boid::in_range(boid_radius, other_boid_radius) {
                 x_avg += other_boid.x as f32;
                 y_avg += other_boid.y as f32;
                 neighboring_boids += 1;

@@ -166,6 +166,7 @@ impl Gui {
                 ui.add(Slider::new(&mut world.matching_factor, 0.0..=1.0).text("Matching factor"));
                 ui.add(Slider::new(&mut world.centering_factor, 0.0..=1.0).text("Centering factor"));
                 ui.add(Slider::new(&mut world.safe_radius, 0.0..=1000.0).text("Safe radius"));
+                ui.add(Slider::new(&mut world.vision_radius, 0.0..=1000.0).text("Vision radius"));
                 ui.separator();
                 ui.add(Slider::new(&mut world.max_speed, world.min_speed..=100).text("Max speed"));
                 ui.add(Slider::new(&mut world.min_speed, 0..=world.max_speed).text("Min speed"));
