@@ -10,10 +10,11 @@ pub(crate) struct Boid {
     velocity_x: i16,
     velocity_y: i16,
     color: [u8; 4],
+    group: u8,
 }
 
 impl Boid {
-    pub(crate) fn new(x: i16, y: i16, size: i16, velocity_x: i16, velocity_y: i16, color: [u8; 4]) -> Self {
+    pub(crate) fn new(x: i16, y: i16, size: i16, velocity_x: i16, velocity_y: i16, color: [u8; 4], group: u8) -> Self {
         Self {
             x,
             y,
@@ -160,6 +161,15 @@ impl Boid {
         if (speed as i16) < min_speed {
             self.velocity_x = ((self.velocity_x as f32 / speed) * min_speed as f32) as i16;
             self.velocity_y = ((self.velocity_y as f32 / speed) * min_speed as f32) as i16;
+        }
+    }
+
+    pub(crate) fn bias(&mut self, bias_factor: f32) {
+        if self.group == 0 {
+            self.velocity_y = ((1.0 - bias_factor) * self.velocity_y as f32 + (bias_factor * 1.0)) as i16;
+        }
+        if self.group == 1 {
+            self.velocity_y = ((1.0 - bias_factor) * self.velocity_y as f32 + (bias_factor * -1.0)) as i16;
         }
     }
 }

@@ -172,6 +172,8 @@ impl Gui {
                 ui.separator();
                 ui.add(Slider::new(&mut world.margin, 0..=500).text("Margin"));
                 ui.add(Slider::new(&mut world.turn_factor, 0..=30).text("Turn factor"));
+                ui.separator();
+                ui.add(Slider::new(&mut world.bias_factor, 0.0..=1.0).text("Bias factor"));
             });
     }
 }
