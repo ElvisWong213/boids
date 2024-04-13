@@ -156,6 +156,15 @@ impl World {
         self.boids.push(Boid::new(x, y, SIZE, velocity_x, velocity_y, [255, 255, 255, 255], rng.gen_range(0..=1)));
     }
 
+    fn restart(&mut self) {
+        self.clear_all();
+        self.spawn_random_boids(NUMBER_OF_BOIDS);
+    }
+
+    fn clear_all(&mut self) {
+        self.boids = vec![]
+    }
+
     fn draw(&self, frame: &mut [u8]) {
         self.background.draw(frame, WIDTH, HEIGHT);
         for boid in &self.boids {
