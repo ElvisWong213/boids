@@ -3,6 +3,8 @@ mod node;
 mod background;
 mod gui;
 
+use std::{sync::{Arc, Mutex}, thread, usize};
+
 use pixels::{self, Pixels, SurfaceTexture};
 use winit::{self, dpi::{PhysicalSize}, event::{ElementState, Event, MouseButton, WindowEvent}, event_loop::{EventLoop}, window::WindowBuilder};
 use rand::Rng;
@@ -15,7 +17,7 @@ use gui::Framework;
 const WIDTH: u32 = 1280;
 const HEIGHT: u32 = 720;
 const SIZE: i16 = 3;
-const NUMBER_OF_BOIDS: u16 = 300;
+const NUMBER_OF_BOIDS: u16 = 600;
 
 fn main() {
     let event_loop = EventLoop::new();
@@ -105,6 +107,7 @@ fn main() {
     });
 }
 
+#[derive(Clone)]
 struct World {
     background: Background,
     boids: Vec<Boid>,
@@ -173,15 +176,32 @@ impl World {
     }
 
     fn update(&mut self) {
-        let copy_boids: Vec<Boid> = self.boids.to_vec();
-        for boid in &mut self.boids {
-            boid.separate(&copy_boids, self.avoid_factor, self.safe_radius);
-            boid.align(&copy_boids, self.matching_factor, self.vision_radius);
-            boid.cohesion(&copy_boids, self.centering_factor, self.vision_radius);
-            boid.avoid_border(self.turn_factor, self.margin, WIDTH, HEIGHT);
-            boid.bias(self.bias_factor);
-            boid.speed_limit(self.max_speed, self.min_speed);
-            boid.update(WIDTH, HEIGHT);
+        let copy_world = Arc::new(Mutex::new(self.clone()));
+        let mut handles = vec![];
+
+        for boid in self.boids.clone() {
+            let conn = copy_world.clone();
+            let handle = thread::spawn(move || {
+                let mut out_boid = boid.clone();
+                let copy_world = conn.lock().unwrap();
+                out_boid.separate(&copy_world.boids, &copy_world.avoid_factor, &copy_world.safe_radius);
+                out_boid.align(&copy_world.boids, &copy_world.matching_factor, &copy_world.vision_radius);
+                out_boid.cohesion(&copy_world.boids, &copy_world.centering_factor, &copy_world.vision_radius);
+                out_boid.avoid_border(&copy_world.turn_factor, &copy_world.margin, WIDTH, HEIGHT);
+                out_boid.bias(&copy_world.bias_factor);
+                out_boid.speed_limit(&copy_world.max_speed, &copy_world.min_speed);
+                out_boid.update(WIDTH, HEIGHT);
+                out_boid
+            });
+            handles.push(handle);
+        }
+        let mut index: usize = 0;
+        for handle in handles {
+            if index >= self.boids.len() {
+                return;
+            }
+            self.boids[index] = handle.join().unwrap();
+            index += 1;
         }
     }
 }
