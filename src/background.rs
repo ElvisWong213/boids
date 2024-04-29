@@ -1,5 +1,6 @@
 use crate::node::RenderNode;
 
+#[derive(Clone)]
 pub(crate) struct Background {
     color: [u8; 4],
 }

@@ -3,6 +3,8 @@ mod node;
 mod background;
 mod gui;
 
+use std::{sync::{Arc, Mutex}, thread};
+
 use pixels::{self, Pixels, SurfaceTexture};
 use winit::{self, dpi::PhysicalSize, event::{ElementState, Event, MouseButton, WindowEvent}, event_loop::EventLoop, window::WindowBuilder};
 use rand::Rng;
@@ -15,7 +17,7 @@ use gui::Framework;
 const WIDTH: u32 = 1280;
 const HEIGHT: u32 = 720;
 const SIZE: i16 = 3;
-const NUMBER_OF_BOIDS: u16 = 200;
+const NUMBER_OF_BOIDS: u16 = 2000;
 
 fn main() {
     let event_loop = EventLoop::new();
@@ -105,6 +107,7 @@ fn main() {
     });
 }
 
+#[derive(Clone)]
 struct World {
     background: Background,
     boids: Vec<Boid>,
@@ -178,16 +181,31 @@ impl World {
     }
 
     fn update(&mut self) {
-        let copy_boids: Vec<Boid> = self.boids.to_vec();
-        for boid in &mut self.boids {
-            boid.separate(&copy_boids, self.avoid_factor, self.safe_radius, self.view_angle);
-            boid.align(&copy_boids, self.matching_factor, self.vision_radius, self.view_angle);
-            boid.cohesion(&copy_boids, self.centering_factor, self.vision_radius, self.view_angle);
-            boid.avoid_border(self.turn_factor, self.margin, WIDTH, HEIGHT);
-            boid.noise(&self.noise);
-            boid.speed_limit(self.max_speed, self.min_speed);
-            boid.update(WIDTH, HEIGHT);
-            boid.update_color(&self.max_speed, &self.min_speed);
+        let copy_world = Arc::new(Mutex::new(self.clone()));
+        let mut handles = vec![];
+
+        for boid in self.boids.clone() {
+            let conn = copy_world.clone();
+            let handle = thread::spawn(move || {
+                let mut out_boid = boid.clone();
+                let copy_world = conn.lock().unwrap();
+                out_boid.separate(&copy_world.boids, copy_world.avoid_factor, copy_world.safe_radius, copy_world.view_angle);
+                out_boid.align(&copy_world.boids, copy_world.matching_factor, copy_world.vision_radius, copy_world.view_angle);
+                out_boid.cohesion(&copy_world.boids, copy_world.centering_factor, copy_world.vision_radius, copy_world.view_angle);
+                out_boid.avoid_border(copy_world.turn_factor, copy_world.margin, WIDTH, HEIGHT);
+                out_boid.noise(&copy_world.noise);
+                out_boid.speed_limit(copy_world.max_speed, copy_world.min_speed);
+                out_boid.update(WIDTH, HEIGHT);
+                out_boid.update_color(&copy_world.max_speed, &copy_world.min_speed);
+                out_boid
+            });
+            handles.push(handle);
+        }
+        for (index, handle) in handles.into_iter().enumerate() {
+            if index >= self.boids.len() {
+                return;
+            }
+            self.boids[index] = handle.join().unwrap();
         }
     }
 }
