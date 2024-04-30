@@ -3,7 +3,8 @@ mod node;
 mod background;
 mod gui;
 
-use std::{sync::{Arc, Mutex}, thread, usize};
+use std::{sync::{Arc, Mutex}, usize};
+use threadpool::ThreadPool;
 
 use pixels::{self, Pixels, SurfaceTexture};
 use winit::{self, dpi::{PhysicalSize}, event::{ElementState, Event, MouseButton, WindowEvent}, event_loop::{EventLoop}, window::WindowBuilder};
@@ -176,14 +177,21 @@ impl World {
     }
 
     fn update(&mut self) {
+        let worker = 8;
+        let pool = ThreadPool::new(worker);
+
         let copy_world = Arc::new(Mutex::new(self.clone()));
-        let mut handles = vec![];
+
+        let mut index: usize = 0;
+        let handles: Arc<Mutex<Vec<(usize, Boid)>>> = Arc::new(Mutex::new(Vec::new()));
 
         for boid in self.boids.clone() {
             let conn = copy_world.clone();
-            let handle = thread::spawn(move || {
-                let mut out_boid = boid.clone();
+            let conn_handles = handles.clone();
+            let mut out_boid = boid.clone();
+            pool.execute(move || {
                 let copy_world = conn.lock().unwrap();
+                let mut handels = conn_handles.lock().unwrap();
                 out_boid.separate(&copy_world.boids, &copy_world.avoid_factor, &copy_world.safe_radius);
                 out_boid.align(&copy_world.boids, &copy_world.matching_factor, &copy_world.vision_radius);
                 out_boid.cohesion(&copy_world.boids, &copy_world.centering_factor, &copy_world.vision_radius);
@@ -191,17 +199,16 @@ impl World {
                 out_boid.bias(&copy_world.bias_factor);
                 out_boid.speed_limit(&copy_world.max_speed, &copy_world.min_speed);
                 out_boid.update(WIDTH, HEIGHT);
-                out_boid
+                let out_data = (index, out_boid);
+                handels.push(out_data);
             });
-            handles.push(handle);
-        }
-        let mut index: usize = 0;
-        for handle in handles {
-            if index >= self.boids.len() {
-                return;
-            }
-            self.boids[index] = handle.join().unwrap();
             index += 1;
+        }
+        pool.join();
+        for handle in &*handles.lock().unwrap() {
+            let index = handle.0;
+            let data = handle.1;
+            self.boids[index] = data;
         }
     }
 }

@@ -2,7 +2,7 @@ use rand::Rng;
 use node::{ RenderNode, MovableMode };
 use crate::node;
 
-#[derive(Clone, PartialEq)]
+#[derive(Clone, Copy, PartialEq)]
 pub(crate) struct Boid {
     x: i16,
     y: i16,
