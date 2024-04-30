@@ -3,8 +3,12 @@ mod node;
 mod background;
 mod gui;
 
+<<<<<<< HEAD
+use std::{sync::{Arc, Mutex}, thread};
+=======
 use std::{sync::{Arc, Mutex}, usize};
 use threadpool::ThreadPool;
+>>>>>>> 8d2e7a0 (refactor: improve multithread performance by using thread pool)
 
 use pixels::{self, Pixels, SurfaceTexture};
 use winit::{self, dpi::PhysicalSize, event::{ElementState, Event, MouseButton, WindowEvent}, event_loop::EventLoop, window::WindowBuilder};
@@ -196,6 +200,7 @@ impl World {
             let mut out_boid = boid.clone();
             pool.execute(move || {
                 let copy_world = conn.lock().unwrap();
+<<<<<<< HEAD
                 out_boid.separate(&copy_world.boids, copy_world.avoid_factor, copy_world.safe_radius, copy_world.view_angle);
                 out_boid.align(&copy_world.boids, copy_world.matching_factor, copy_world.vision_radius, copy_world.view_angle);
                 out_boid.cohesion(&copy_world.boids, copy_world.centering_factor, copy_world.vision_radius, copy_world.view_angle);
@@ -213,6 +218,20 @@ impl World {
                 return;
             }
             self.boids[index] = handle.join().unwrap();
+=======
+                let mut handels = conn_handles.lock().unwrap();
+                out_boid.separate(&copy_world.boids, &copy_world.avoid_factor, &copy_world.safe_radius);
+                out_boid.align(&copy_world.boids, &copy_world.matching_factor, &copy_world.vision_radius);
+                out_boid.cohesion(&copy_world.boids, &copy_world.centering_factor, &copy_world.vision_radius);
+                out_boid.avoid_border(&copy_world.turn_factor, &copy_world.margin, WIDTH, HEIGHT);
+                out_boid.bias(&copy_world.bias_factor);
+                out_boid.speed_limit(&copy_world.max_speed, &copy_world.min_speed);
+                out_boid.update(WIDTH, HEIGHT);
+                let out_data = (index, out_boid);
+                handels.push(out_data);
+            });
+            index += 1;
+>>>>>>> 8d2e7a0 (refactor: improve multithread performance by using thread pool)
         }
         pool.join();
         for handle in &*handles.lock().unwrap() {
