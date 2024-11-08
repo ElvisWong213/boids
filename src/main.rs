@@ -4,7 +4,7 @@ mod background;
 mod gui;
 
 use pixels::{self, Pixels, SurfaceTexture};
-use winit::{self, dpi::{PhysicalSize}, event::{ElementState, Event, MouseButton, WindowEvent}, event_loop::{EventLoop}, window::WindowBuilder};
+use winit::{self, dpi::PhysicalSize, event::{ElementState, Event, MouseButton, WindowEvent}, event_loop::EventLoop, window::WindowBuilder};
 use rand::Rng;
 use winit::dpi::PhysicalPosition;
 use boid::Boid;
@@ -45,7 +45,7 @@ fn main() {
 
     world.spawn_random_boids(NUMBER_OF_BOIDS);
 
-    let _ = event_loop.run(move |event, _, elwt| {
+    event_loop.run(move |event, _, elwt| {
         match event {
             Event::MainEventsCleared => {
                 framework.prepare(&window, &mut world);
@@ -68,19 +68,19 @@ fn main() {
             Event::WindowEvent { event, .. } => {
                 // Update egui inputs
                 let event_response = framework.handle_event(&event);
-                if event_response.consumed == false {
+                if !event_response.consumed {
                     match event {
                         WindowEvent::CloseRequested => {
                             println!("Close Window");
                             elwt.set_exit();
                         },
                         WindowEvent::MouseInput{ button, state, .. } => {
-                            if button == MouseButton::Left && state == ElementState::Pressed && mouse_press == false {
+                            if button == MouseButton::Left && state == ElementState::Pressed && !mouse_press {
                                 mouse_press = true;
                                 println!("{:}, {:}", mouse_position.x, mouse_position.y);
                                 world.spawn_boids(mouse_position.x as i16, mouse_position.y as i16);
                             }
-                            if button == MouseButton::Left && state == ElementState::Released && mouse_press == true {
+                            if button == MouseButton::Left && state == ElementState::Released && mouse_press {
                                 mouse_press = false;
                             }
                         },

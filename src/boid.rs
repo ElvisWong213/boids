@@ -123,7 +123,7 @@ impl Boid {
         if vx >= 0 && vy >= 0 {
             return rad;
         }
-        if (vx < 0 && vy >= 0) || (vx < 0 && vy < 0) {
+        if vx < 0 {
             return 1.0 + rad;
         }
         2.0 + rad
