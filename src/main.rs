@@ -153,7 +153,7 @@ impl World {
         let velocity_x = rng.gen_range(-self.min_speed..=self.min_speed);
         let range: [i16; 2] = [-1, 1];
         let velocity_y = ((self.min_speed.pow(2) - velocity_x.pow(2)) as f32).sqrt() as i16 * range[rng.gen_range(0..=1)];
-        self.boids.push(Boid::new(x, y, SIZE, velocity_x, velocity_y, [255, 255, 255, 255], rng.gen_range(0..=1)));
+        self.boids.push(Boid::new(x, y, SIZE, velocity_x, velocity_y, [255, 255, 0, 255], rng.gen_range(0..=1)));
     }
 
     fn restart(&mut self) {
@@ -168,7 +168,7 @@ impl World {
     fn draw(&self, frame: &mut [u8]) {
         self.background.draw(frame, WIDTH, HEIGHT);
         for boid in &self.boids {
-            boid.draw(frame, WIDTH, HEIGHT)
+            boid.draw(frame, WIDTH, HEIGHT);
         }
     }
 
@@ -182,6 +182,7 @@ impl World {
             boid.bias(self.bias_factor);
             boid.speed_limit(self.max_speed, self.min_speed);
             boid.update(WIDTH, HEIGHT);
+            boid.update_color(&self.max_speed, &self.min_speed);
         }
     }
 }

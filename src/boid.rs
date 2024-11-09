@@ -173,6 +173,21 @@ impl Boid {
             self.velocity_y = ((1.0 - bias_factor) * self.velocity_y as f32 + (bias_factor * -1.0)) as i16;
         }
     }
+
+    pub(crate) fn update_color(&mut self, max_speed: &i16, min_speed: &i16) {
+        let mut current_speed = (self.velocity_x * self.velocity_x + self.velocity_y * self.velocity_y) as i32;
+        let max = (max_speed * max_speed) as i32;
+        let min = (min_speed * min_speed) as i32;
+        if current_speed < 0 {
+            current_speed *= -1;
+        }
+        if current_speed > max {
+            return;
+        }
+        let range = (current_speed - min) as f32 / (max - min) as f32 * 255.0;
+        self.color[0] = 255 - range as u8;
+        self.color[1] = range as u8;
+    }
 }
 
 impl RenderNode for Boid {
