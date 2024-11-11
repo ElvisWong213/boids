@@ -1,4 +1,4 @@
-use egui::{Align, Button, ClippedPrimitive, Context, Layout, Slider, TexturesDelta};
+use egui::{Align, Button, Checkbox, ClippedPrimitive, Context, Layout, Slider, TexturesDelta};
 use egui_wgpu::renderer::{Renderer, ScreenDescriptor};
 use egui_winit::EventResponse;
 use pixels::{wgpu, PixelsContext};
@@ -174,7 +174,8 @@ impl Gui {
                 ui.add(Slider::new(&mut world.margin, 0..=500).text("Margin"));
                 ui.add(Slider::new(&mut world.turn_factor, 0..=30).text("Turn factor"));
                 ui.separator();
-                ui.add(Slider::new(&mut world.bias_factor, 0.0..=1.0).text("Bias factor"));
+                ui.add(Slider::new(&mut world.view_angle, 0.0..=364.9).text("View angle"));
+                ui.add(Checkbox::new(&mut world.noise, "Add Noise"));
                 ui.with_layout(Layout::left_to_right(Align::TOP), |ui| {
                     if ui.add(Button::new("Restart")).clicked() {
                         world.restart();

@@ -8,14 +8,14 @@ use winit::{self, dpi::PhysicalSize, event::{ElementState, Event, MouseButton, W
 use rand::Rng;
 use winit::dpi::PhysicalPosition;
 use boid::Boid;
-use node::{ RenderNode, MovableMode };
+use node::{ MovableMode, RenderNode, Vertice };
 use background::Background;
 use gui::Framework;
 
 const WIDTH: u32 = 1280;
 const HEIGHT: u32 = 720;
 const SIZE: i16 = 3;
-const NUMBER_OF_BOIDS: u16 = 300;
+const NUMBER_OF_BOIDS: u16 = 200;
 
 fn main() {
     let event_loop = EventLoop::new();
@@ -117,7 +117,8 @@ struct World {
     min_speed: i16,
     margin: i16,
     turn_factor: i16,
-    bias_factor: f32,
+    noise: bool,
+    view_angle: f32,
 }
 
 impl World {
@@ -125,16 +126,17 @@ impl World {
         Self {
             background: Background::new([0, 0, 0, 0]),
             boids: Vec::new(),
-            avoid_factor: 0.1,
-            matching_factor: 0.25,
-            centering_factor: 0.25,
-            safe_radius: 50.0,
-            vision_radius: 100.0,
-            max_speed: 25,
+            avoid_factor: 0.27,
+            matching_factor: 0.55,
+            centering_factor: 0.06,
+            safe_radius: 30.0,
+            vision_radius: 80.0,
+            max_speed: 10,
             min_speed: 5,
-            margin: 100,
-            turn_factor: 8,
-            bias_factor: 0.01,
+            margin: 20,
+            turn_factor: 30,
+            noise: false,
+            view_angle: 120.0,
         }
     }
 
@@ -153,7 +155,10 @@ impl World {
         let velocity_x = rng.gen_range(-self.min_speed..=self.min_speed);
         let range: [i16; 2] = [-1, 1];
         let velocity_y = ((self.min_speed.pow(2) - velocity_x.pow(2)) as f32).sqrt() as i16 * range[rng.gen_range(0..=1)];
-        self.boids.push(Boid::new(x, y, SIZE, velocity_x, velocity_y, [255, 255, 0, 255], rng.gen_range(0..=1)));
+        let mut vertice = Vertice::new();
+        vertice.x = x;
+        vertice.y = y;
+        self.boids.push(Boid::new(vertice, SIZE, velocity_x, velocity_y, [255, 255, 0, 255]));
     }
 
     fn restart(&mut self) {
@@ -175,11 +180,11 @@ impl World {
     fn update(&mut self) {
         let copy_boids: Vec<Boid> = self.boids.to_vec();
         for boid in &mut self.boids {
-            boid.separate(&copy_boids, self.avoid_factor, self.safe_radius);
-            boid.align(&copy_boids, self.matching_factor, self.vision_radius);
-            boid.cohesion(&copy_boids, self.centering_factor, self.vision_radius);
+            boid.separate(&copy_boids, self.avoid_factor, self.safe_radius, self.view_angle);
+            boid.align(&copy_boids, self.matching_factor, self.vision_radius, self.view_angle);
+            boid.cohesion(&copy_boids, self.centering_factor, self.vision_radius, self.view_angle);
             boid.avoid_border(self.turn_factor, self.margin, WIDTH, HEIGHT);
-            boid.bias(self.bias_factor);
+            boid.noise(&self.noise);
             boid.speed_limit(self.max_speed, self.min_speed);
             boid.update(WIDTH, HEIGHT);
             boid.update_color(&self.max_speed, &self.min_speed);
