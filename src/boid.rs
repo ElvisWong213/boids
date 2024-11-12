@@ -4,7 +4,7 @@ use crate::node::{self, Vertice};
 
 #[derive(Clone, PartialEq)]
 pub(crate) struct Boid {
-    vertice: Vertice,
+    pub vertice: Vertice,
     size: i16,
     velocity_x: i16,
     velocity_y: i16,
@@ -114,7 +114,7 @@ impl Boid {
 
     }
 
-    pub(crate) fn avoid_border(&mut self, turn_factor: i16, margin: i16, width: u32, height: u32) {
+    pub(crate) fn avoid_border(&mut self, turn_factor: i16, margin: i16, width: u16, height: u16) {
         if self.vertice.x < margin {
             self.velocity_x += turn_factor;
         }
@@ -153,7 +153,7 @@ impl Boid {
         }
     }
 
-    pub(crate) fn noise(&mut self, on: &bool) {
+    pub(crate) fn noise(&mut self, on: bool) {
         if !on {
             return;
         }
@@ -173,13 +173,13 @@ impl Boid {
         self.velocity_y += y_val as i16;
     }
 
-    pub(crate) fn update_color(&mut self, max_speed: &i16, min_speed: &i16) {
+    pub(crate) fn update_color(&mut self, max_speed: i16, min_speed: i16) {
         let velocity_x = self.velocity_x as f32;
         let velocity_y = self.velocity_y as f32;
         let mut current_speed = velocity_x * velocity_x + velocity_y * velocity_y;
         current_speed = current_speed.sqrt();
-        let max = *max_speed as f32;
-        let min = *min_speed as f32;
+        let max = max_speed as f32;
+        let min = min_speed as f32;
         if current_speed > max {
             return;
         }
@@ -219,7 +219,7 @@ impl Boid {
 }
 
 impl RenderNode for Boid {
-    fn draw(&self, frame: &mut[u8], width: u32, height: u32) {
+    fn draw(&self, frame: &mut[u8], width: u16, height: u16) {
         for i in 0..self.size {
             for j in 0..self.size {
                 let x = (self.vertice.x + j) as usize;
@@ -241,7 +241,9 @@ impl RenderNode for Boid {
 }
 
 impl MovableMode for Boid {
-    fn update(&mut self, width: u32, height: u32) {
+    fn update(&mut self, width: u16, height: u16) {
+        self.vertice.x += self.velocity_x;
+        self.vertice.y += self.velocity_y;
         if self.vertice.x < -self.size {
             self.vertice.x = width as i16;
         }
@@ -254,7 +256,5 @@ impl MovableMode for Boid {
         if self.vertice.y > height as i16 {
             self.vertice.y = 0;
         }
-        self.vertice.x += self.velocity_x;
-        self.vertice.y += self.velocity_y;
     }
 }

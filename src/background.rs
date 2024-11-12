@@ -13,7 +13,7 @@ impl Background {
 }
 
 impl RenderNode for Background {
-    fn draw(&self, frame: &mut[u8], _width: u32, _height: u32) {
+    fn draw(&self, frame: &mut[u8], _width: u16, _height: u16) {
         for pixel in frame.chunks_exact_mut(4) {
             pixel.copy_from_slice(&self.color);
         }
