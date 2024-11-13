@@ -1,6 +1,6 @@
-use rand::Rng;
-use node::{ RenderNode, MovableMode };
 use crate::node::{self, Vertice};
+use node::{MovableNode, RenderNode};
+use rand::Rng;
 
 #[derive(Clone, PartialEq)]
 pub(crate) struct Boid {
@@ -12,7 +12,13 @@ pub(crate) struct Boid {
 }
 
 impl Boid {
-    pub(crate) fn new(vertice: Vertice, size: i16, velocity_x: i16, velocity_y: i16, color: [u8; 4]) -> Self {
+    pub(crate) fn new(
+        vertice: Vertice,
+        size: i16,
+        velocity_x: i16,
+        velocity_y: i16,
+        color: [u8; 4],
+    ) -> Self {
         Self {
             vertice,
             size,
@@ -22,7 +28,13 @@ impl Boid {
         }
     }
 
-    pub(crate) fn separate(&mut self, boids: &Vec<Boid>, avoid_factor: f32, safe_radius: f32, view_angle: f32) {
+    pub(crate) fn separate(
+        &mut self,
+        boids: &Vec<Boid>,
+        avoid_factor: f32,
+        safe_radius: f32,
+        view_angle: f32,
+    ) {
         let mut close_dx: f32 = 0.0;
         let mut close_dy: f32 = 0.0;
 
@@ -49,7 +61,13 @@ impl Boid {
         self.velocity_y += (close_dy * avoid_factor) as i16;
     }
 
-    pub(crate) fn align(&mut self, boids: &Vec<Boid>, matching_factor: f32, vision_radius: f32, view_angle: f32) {
+    pub(crate) fn align(
+        &mut self,
+        boids: &Vec<Boid>,
+        matching_factor: f32,
+        vision_radius: f32,
+        view_angle: f32,
+    ) {
         let mut neighboring_boids: u16 = 0;
         let mut vx_avg: f32 = 0.0;
         let mut vy_avg: f32 = 0.0;
@@ -81,7 +99,13 @@ impl Boid {
         }
     }
 
-    pub(crate) fn cohesion(&mut self, boids: &Vec<Boid>, centering_factor: f32, vision_radius: f32, view_angle: f32) {
+    pub(crate) fn cohesion(
+        &mut self,
+        boids: &Vec<Boid>,
+        centering_factor: f32,
+        vision_radius: f32,
+        view_angle: f32,
+    ) {
         let mut neighboring_boids: u16 = 0;
         let mut x_avg: f32 = 0.0;
         let mut y_avg: f32 = 0.0;
@@ -111,7 +135,6 @@ impl Boid {
             self.velocity_x += ((x_avg - self.vertice.x as f32) * centering_factor) as i16;
             self.velocity_y += ((y_avg - self.vertice.y as f32) * centering_factor) as i16;
         }
-
     }
 
     pub(crate) fn avoid_border(&mut self, turn_factor: i16, margin: i16, width: u16, height: u16) {
@@ -137,7 +160,8 @@ impl Boid {
             let mut rng = rand::thread_rng();
             let velocity_x = rng.gen_range(-min_speed..=min_speed);
             let range: [i16; 2] = [-1, 1];
-            let velocity_y = ((min_speed.pow(2) - velocity_x.pow(2)) as f32).sqrt() as i16 * range[rng.gen_range(0..=1)];
+            let velocity_y = ((min_speed.pow(2) - velocity_x.pow(2)) as f32).sqrt() as i16
+                * range[rng.gen_range(0..=1)];
 
             self.velocity_x = velocity_x;
             self.velocity_y = velocity_y;
@@ -215,20 +239,22 @@ impl Boid {
         }
         false
     }
-
 }
 
 impl RenderNode for Boid {
-    fn draw(&self, frame: &mut[u8], width: u16, height: u16) {
+    fn draw(&self, frame: &mut [u8], width: u16, height: u16) {
         for i in 0..self.size {
             for j in 0..self.size {
                 let x = (self.vertice.x + j) as usize;
                 let y = (self.vertice.y + i) as usize;
-                if x >= width as usize || y >= height as usize{
+                if x >= width as usize || y >= height as usize {
                     continue;
                 }
-                let start: usize = y.wrapping_mul(width as usize).wrapping_add(x).wrapping_mul(4);
-                for count in 0 .. 4 {
+                let start: usize = y
+                    .wrapping_mul(width as usize)
+                    .wrapping_add(x)
+                    .wrapping_mul(4);
+                for count in 0..4 {
                     let index = start + count;
                     if index >= frame.len() {
                         break;
@@ -240,7 +266,7 @@ impl RenderNode for Boid {
     }
 }
 
-impl MovableMode for Boid {
+impl MovableNode for Boid {
     fn update(&mut self, width: u16, height: u16) {
         self.vertice.x += self.velocity_x;
         self.vertice.y += self.velocity_y;
