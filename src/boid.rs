@@ -270,13 +270,13 @@ impl MovableNode for Boid {
     fn update(&mut self, width: u16, height: u16) {
         self.vertice.x += self.velocity_x;
         self.vertice.y += self.velocity_y;
-        if self.vertice.x < -self.size {
+        if self.vertice.x < 0 {
             self.vertice.x = width as i16;
         }
         if self.vertice.x > width as i16 {
             self.vertice.x = 0;
         }
-        if self.vertice.y < -self.size {
+        if self.vertice.y < 0 {
             self.vertice.y = height as i16;
         }
         if self.vertice.y > height as i16 {
