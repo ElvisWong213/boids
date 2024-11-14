@@ -1,4 +1,4 @@
-use egui::{Align, Button, Checkbox, ClippedPrimitive, Context, Layout, Slider, TexturesDelta};
+use egui::{Align, Button, Checkbox, ClippedPrimitive, Context, Label, Layout, Slider, TexturesDelta};
 use egui_wgpu::renderer::{Renderer, ScreenDescriptor};
 use egui_winit::EventResponse;
 use pixels::{wgpu, PixelsContext};
@@ -176,6 +176,8 @@ impl Gui {
                 ui.separator();
                 ui.add(Slider::new(&mut world.view_angle, 0.0..=364.9).text("View angle"));
                 ui.add(Checkbox::new(&mut world.noise, "Add Noise"));
+                ui.separator();
+                ui.label(format!("FPS: {}", world.fps as u16));
                 ui.with_layout(Layout::left_to_right(Align::TOP), |ui| {
                     if ui.add(Button::new("Restart")).clicked() {
                         world.restart();

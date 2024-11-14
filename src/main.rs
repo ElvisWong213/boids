@@ -3,6 +3,8 @@ mod boid;
 mod gui;
 mod node;
 
+use std::time::SystemTime;
+
 use background::Background;
 use boid::Boid;
 use gui::Framework;
@@ -21,7 +23,7 @@ use winit::{
 const WIDTH: u16 = 1280;
 const HEIGHT: u16 = 720;
 const SIZE: i16 = 3;
-const NUMBER_OF_BOIDS: u16 = 2000;
+const NUMBER_OF_BOIDS: u16 = 3000;
 const QUAD_TREE_CAPACITY: usize = 4;
 
 fn main() {
@@ -142,6 +144,7 @@ struct World {
     turn_factor: i16,
     noise: bool,
     view_angle: f32,
+    fps: f32,
 }
 
 impl World {
@@ -174,6 +177,7 @@ impl World {
             turn_factor: 30,
             noise: false,
             view_angle: 120.0,
+            fps: 0.0,
         }
     }
 
@@ -220,6 +224,7 @@ impl World {
     }
 
     fn update(&mut self) {
+        let start_time = SystemTime::now();
         let mut new_quard_tree = QuadTree::new(QUAD_TREE_CAPACITY, self.boundary.clone());
         for boid in self.quad_tree.to_vec() {
             let mut new_boid = boid.clone();
@@ -246,5 +251,18 @@ impl World {
             new_quard_tree.insert(&new_boid);
         }
         self.quad_tree = new_quard_tree.clone();
+        let end_time = SystemTime::now();
+        Self::update_fps_count(self, start_time, end_time);
+    }
+
+    fn update_fps_count(&mut self, start_time: SystemTime, end_time: SystemTime) {
+        match end_time.duration_since(start_time) {
+            Ok(duration) => {
+                self.fps = 1.0 / duration.as_secs_f32();
+            }
+            Err(_) => {
+                println!("Cannot get duration");
+            }
+        }
     }
 }
