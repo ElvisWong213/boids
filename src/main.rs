@@ -2,13 +2,15 @@ mod background;
 mod boid;
 mod gui;
 mod node;
+mod geometry;
 
 use std::time::SystemTime;
 
 use background::Background;
 use boid::Boid;
+use geometry::{Color, Rectangle};
 use gui::Framework;
-use node::{MovableNode, QuadTree, Rectangle, RenderNode, Vertice};
+use node::{MovableNode, QuadTree, RenderNode, Vertice};
 use pixels::{self, Pixels, SurfaceTexture};
 use rand::Rng;
 use winit::dpi::PhysicalPosition;
@@ -151,7 +153,7 @@ struct World {
 impl World {
     fn new() -> Self {
         Self {
-            background: Background::new([0, 0, 0, 0]),
+            background: Background::new(Color::Black),
             boundary: Rectangle::new(
                 WIDTH as f32 / 2.0,
                 HEIGHT as f32 / 2.0,
