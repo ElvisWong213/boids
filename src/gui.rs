@@ -1,3 +1,5 @@
+use std::cmp::min;
+
 use egui::{Align, Button, Checkbox, ClippedPrimitive, Context, Layout, Slider, TexturesDelta};
 use egui_wgpu::renderer::{Renderer, ScreenDescriptor};
 use egui_winit::EventResponse;
@@ -24,7 +26,8 @@ pub(crate) struct Framework {
 /// Example application state. A real application will need a lot more state than this.
 struct Gui {
     /// Only show the egui window when true.
-    window_open: bool,
+    open_adjust_window: bool,
+    open_debug_window: bool,
 }
 
 impl Framework {
@@ -143,7 +146,7 @@ impl Framework {
 impl Gui {
     /// Create a `Gui`.
     fn new() -> Self {
-        Self { window_open: true }
+        Self { open_adjust_window: true, open_debug_window: true }
     }
 
     /// Create the UI using egui.
@@ -152,7 +155,7 @@ impl Gui {
             egui::menu::bar(ui, |ui| {
                 ui.menu_button("Setting", |ui| {
                     if ui.button("Adjust").clicked() {
-                        self.window_open = true;
+                        self.open_adjust_window = true;
                         ui.close_menu();
                     }
                 })
@@ -160,25 +163,40 @@ impl Gui {
         });
 
         egui::Window::new("Adjust")
-            .open(&mut self.window_open)
+            .open(&mut self.open_adjust_window)
             .show(ctx, |ui| {
-                ui.add(Slider::new(&mut world.avoid_factor, 0.0..=1.0).text("Avoid factor"));
-                ui.add(Slider::new(&mut world.matching_factor, 0.0..=1.0).text("Matching factor"));
-                ui.add(Slider::new(&mut world.centering_factor, 0.0..=1.0).text("Centering factor"));
-                ui.add(Slider::new(&mut world.safe_radius, 0.0..=1000.0).text("Safe radius"));
-                ui.add(Slider::new(&mut world.vision_radius, 0.0..=1000.0).text("Vision radius"));
+                ui.add(Slider::new(&mut world.option.avoid_factor, 0.0..=1.0).text("Avoid factor"));
+                ui.add(Slider::new(&mut world.option.matching_factor, 0.0..=1.0).text("Matching factor"));
+                ui.add(Slider::new(&mut world.option.centering_factor, 0.0..=1.0).text("Centering factor"));
+                ui.add(Slider::new(&mut world.option.safe_radius, 0.0..=1000.0).text("Safe radius"));
+                ui.add(Slider::new(&mut world.option.vision_radius, 0.0..=1000.0).text("Vision radius"));
                 ui.separator();
-                ui.add(Slider::new(&mut world.max_speed, world.min_speed..=100).text("Max speed"));
-                ui.add(Slider::new(&mut world.min_speed, 0..=world.max_speed).text("Min speed"));
+                ui.add(Slider::new(&mut world.option.max_speed, world.option.min_speed..=100).text("Max speed"));
+                ui.add(Slider::new(&mut world.option.min_speed, 0..=world.option.max_speed).text("Min speed"));
                 ui.separator();
-                ui.add(Slider::new(&mut world.margin, 0..=500).text("Margin"));
-                ui.add(Slider::new(&mut world.turn_factor, 0..=30).text("Turn factor"));
+                ui.add(Slider::new(&mut world.option.margin, 0..=500).text("Margin"));
+                ui.add(Slider::new(&mut world.option.turn_factor, 0..=30).text("Turn factor"));
                 ui.separator();
-                ui.add(Slider::new(&mut world.view_angle, 0.0..=364.9).text("View angle"));
-                ui.add(Checkbox::new(&mut world.noise, "Add Noise"));
-                ui.add(Checkbox::new(&mut world.show_quad_tree, "Show Quad Tree"));
+                ui.add(Slider::new(&mut world.option.view_angle, 0.0..=364.9).text("View angle"));
+                ui.add(Checkbox::new(&mut world.option.noise, "Add Noise"));
+                ui.with_layout(Layout::left_to_right(Align::TOP), |ui| {
+                    if ui.add(Button::new("Restart")).clicked() {
+                        world.restart();
+                    }
+                    if ui.add(Button::new("Clear")).clicked() {
+                        world.clear_all();
+                    }
+                });
+            });
+
+        egui::Window::new("Debug")
+            .open(&mut self.open_debug_window)
+            .show(ctx, |ui| {
+                ui.add(Checkbox::new(&mut world.option.show_quad_tree, "Show Quad Tree"));
+                ui.add(Checkbox::new(&mut world.option.show_safe_radius, "Show Safe Radius"));
+                ui.add(Checkbox::new(&mut world.option.show_vision_radius, "Show Vision Radius"));
                 ui.separator();
-                ui.label(format!("FPS: {}", world.fps as u16));
+                ui.label(format!("FPS: {}", min(world.draw_fps as u16, world.update_fps as u16)));
                 ui.with_layout(Layout::left_to_right(Align::TOP), |ui| {
                     if ui.add(Button::new("Restart")).clicked() {
                         world.restart();

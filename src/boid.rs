@@ -1,4 +1,4 @@
-use crate::node::{self, Vertice};
+use crate::{geometry::{change_pixel, Circle, Color}, node::{self, Vertice}, WorldOption};
 use node::{MovableNode, RenderNode};
 use rand::Rng;
 
@@ -239,10 +239,21 @@ impl Boid {
         }
         false
     }
+
+    fn draw_circle(&self, frame: &mut [u8], width: u16, height: u16, radius: f32, color: Color) {
+        let circle = Circle::new(self.vertice.x as f32, self.vertice.y as f32, radius, color);
+        circle.draw(frame, width, height);
+    }
 }
 
 impl RenderNode for Boid {
-    fn draw(&self, frame: &mut [u8], width: u16, height: u16) {
+    fn draw_with_option(&self, frame: &mut [u8], width: u16, height: u16, _world_option: &WorldOption) {
+        if _world_option.show_safe_radius {
+            self.draw_circle(frame, width, height, _world_option.safe_radius, Color::Red);
+        }
+        if _world_option.show_vision_radius {
+            self.draw_circle(frame, width, height, _world_option.vision_radius, Color::Blue);
+        }
         for i in 0..self.size {
             for j in 0..self.size {
                 let x = (self.vertice.x + j) as usize;
@@ -250,17 +261,7 @@ impl RenderNode for Boid {
                 if x >= width as usize || y >= height as usize {
                     continue;
                 }
-                let start: usize = y
-                    .wrapping_mul(width as usize)
-                    .wrapping_add(x)
-                    .wrapping_mul(4);
-                for count in 0..4 {
-                    let index = start + count;
-                    if index >= frame.len() {
-                        break;
-                    }
-                    frame[index] = self.color[count];
-                }
+                change_pixel(frame, x, y, width, height, self.color);
             }
         }
     }

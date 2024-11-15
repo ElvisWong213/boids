@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use std::{f32::consts::PI, fmt::Display};
 
 use crate::node::{RenderNode, Vertice};
 
@@ -37,7 +37,7 @@ impl Rectangle {
 }
 
 impl RenderNode for Rectangle {
-    fn draw(&self, _frame: &mut [u8], _width: u16, _height: u16) {
+    fn draw(&self, frame: &mut [u8], width: u16, height: u16) {
         let mut a = Vertice::new();
         let mut b = Vertice::new();
         let mut c = Vertice::new();
@@ -55,10 +55,10 @@ impl RenderNode for Rectangle {
         d.x = self.center_x as i16 + self.half_width as i16;
         d.y = self.center_y as i16 - self.half_height as i16;
 
-        draw_line(&a, &b, _frame, _width, _height);
-        draw_line(&b, &c, _frame, _width, _height);
-        draw_line(&c, &d, _frame, _width, _height);
-        draw_line(&d, &a, _frame, _width, _height);
+        draw_line(&a, &b, frame, width, height);
+        draw_line(&b, &c, frame, width, height);
+        draw_line(&c, &d, frame, width, height);
+        draw_line(&d, &a, frame, width, height);
     }
 }
 
@@ -116,6 +116,34 @@ pub(crate) fn change_pixel(
             break;
         }
         frame[index] = *val;
+    }
+}
+
+pub(crate) struct Circle {
+    x: f32,
+    y: f32,
+    radius: f32,
+    color: Color,
+}
+
+impl Circle {
+    pub(crate) fn new(x: f32, y: f32, radius: f32, color: Color) -> Self {
+        Self { x, y, radius, color }
+    }
+}
+
+impl RenderNode for Circle {
+    fn draw(&self, _frame: &mut [u8], _width: u16, _height: u16) {
+        if self.radius == 0.0 {
+            return;
+        }
+        let color = self.color.to_color_array();
+        for angle in 0..=365 {
+            let angle = angle as f32;
+            let x = self.radius * (angle * PI / 180.0).cos() + self.x;
+            let y = self.radius * (angle * PI / 180.0).sin() + self.y;
+            change_pixel(_frame, x as usize, y as usize, _width, _height, color);
+        }
     }
 }
 

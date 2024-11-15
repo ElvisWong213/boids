@@ -1,7 +1,8 @@
-use crate::{boid::Boid, geometry::Rectangle};
+use crate::{boid::Boid, geometry::Rectangle, WorldOption};
 use std::fmt::Display;
 
 pub(crate) trait RenderNode {
+    fn draw_with_option(&self, _frame: &mut [u8], _width: u16, _height: u16, _world_option: &WorldOption) {}
     fn draw(&self, _frame: &mut [u8], _width: u16, _height: u16) {}
 }
 
@@ -245,57 +246,25 @@ impl QuadTree {
         boids
     }
 
-    pub(crate) fn draw_quad_tree(&self, _frame: &mut [u8], _width: u16, _height: u16) {
-        self.boundary.draw(_frame, _width, _height);
-        if !self.splitted {
-            return;
-        }
-        match &self.top_left {
-            Some(q_tree) => {
-                q_tree.draw_quad_tree(_frame, _width, _width);
-            }
-            None => {
-                panic!("Top left is not create");
-            }
-        }
-        match &self.top_right {
-            Some(q_tree) => {
-                q_tree.draw_quad_tree(_frame, _width, _width);
-            }
-            None => {
-                panic!("Top right is not create");
-            }
-        }
-        match &self.bottom_left {
-            Some(q_tree) => {
-                q_tree.draw_quad_tree(_frame, _width, _width);
-            }
-            None => {
-                panic!("Bottom left is not create");
-            }
-        }
-        match &self.bottom_right {
-            Some(q_tree) => {
-                q_tree.draw_quad_tree(_frame, _width, _width);
-            }
-            None => {
-                panic!("Bottom right is not create");
-            }
-        }
+    pub(crate) fn draw_quad_tree(&self, frame: &mut [u8], width: u16, height: u16) {
+        self.boundary.draw(frame, width, height);
     }
 }
 
 impl RenderNode for QuadTree {
-    fn draw(&self, _frame: &mut [u8], _width: u16, _height: u16) {
+    fn draw_with_option(&self, frame: &mut [u8], width: u16, height: u16, _world_option: &WorldOption) {
+        if _world_option.show_quad_tree {
+            self.draw_quad_tree(frame, width, height);
+        }
         for boid in &self.boids {
-            boid.draw(_frame, _width, _width);
+            boid.draw_with_option(frame, width, width, _world_option);
         }
         if !self.splitted {
             return;
         }
         match &self.top_left {
             Some(q_tree) => {
-                q_tree.draw(_frame, _width, _width);
+                q_tree.draw_with_option(frame, width, width, _world_option);
             }
             None => {
                 panic!("Top left is not create");
@@ -303,7 +272,7 @@ impl RenderNode for QuadTree {
         }
         match &self.top_right {
             Some(q_tree) => {
-                q_tree.draw(_frame, _width, _width);
+                q_tree.draw_with_option(frame, width, width, _world_option);
             }
             None => {
                 panic!("Top right is not create");
@@ -311,7 +280,7 @@ impl RenderNode for QuadTree {
         }
         match &self.bottom_left {
             Some(q_tree) => {
-                q_tree.draw(_frame, _width, _width);
+                q_tree.draw_with_option(frame, width, width, _world_option);
             }
             None => {
                 panic!("Bottom left is not create");
@@ -319,7 +288,7 @@ impl RenderNode for QuadTree {
         }
         match &self.bottom_right {
             Some(q_tree) => {
-                q_tree.draw(_frame, _width, _width);
+                q_tree.draw_with_option(frame, width, width, _world_option);
             }
             None => {
                 panic!("Bottom right is not create");

@@ -131,10 +131,7 @@ fn main() {
     });
 }
 
-struct World {
-    background: Background,
-    boundary: Rectangle,
-    quad_tree: QuadTree,
+struct WorldOption {
     avoid_factor: f32,
     matching_factor: f32,
     centering_factor: f32,
@@ -144,10 +141,41 @@ struct World {
     min_speed: i16,
     margin: u16,
     turn_factor: i16,
-    noise: bool,
     view_angle: f32,
-    fps: f32,
+    noise: bool,
     show_quad_tree: bool,
+    show_safe_radius: bool,
+    show_vision_radius: bool,
+}
+
+impl WorldOption {
+    fn new() -> Self {
+        Self {
+            avoid_factor: 0.27,
+            matching_factor: 0.55,
+            centering_factor: 0.06,
+            safe_radius: 30.0,
+            vision_radius: 80.0,
+            max_speed: 10,
+            min_speed: 5,
+            margin: 20,
+            turn_factor: 30,
+            view_angle: 120.0,
+            noise: false,
+            show_quad_tree: false,
+            show_safe_radius: false,
+            show_vision_radius: false,
+        }
+    }
+}
+
+struct World {
+    background: Background,
+    boundary: Rectangle,
+    quad_tree: QuadTree,
+    update_fps: f32,
+    draw_fps: f32,
+    option: WorldOption,
 }
 
 impl World {
@@ -169,19 +197,9 @@ impl World {
                     HEIGHT as f32 / 2.0,
                 ),
             ),
-            avoid_factor: 0.27,
-            matching_factor: 0.55,
-            centering_factor: 0.06,
-            safe_radius: 30.0,
-            vision_radius: 80.0,
-            max_speed: 10,
-            min_speed: 5,
-            margin: 20,
-            turn_factor: 30,
-            noise: false,
-            view_angle: 120.0,
-            fps: 0.0,
-            show_quad_tree: false,
+            update_fps: 0.0,
+            draw_fps: 0.0,
+            option: WorldOption::new(),
         }
     }
 
@@ -197,9 +215,9 @@ impl World {
 
     fn spawn_boids(&mut self, x: i16, y: i16) {
         let mut rng = rand::thread_rng();
-        let velocity_x = rng.gen_range(-self.min_speed..=self.min_speed);
+        let velocity_x = rng.gen_range(-self.option.min_speed..=self.option.min_speed);
         let range: [i16; 2] = [-1, 1];
-        let velocity_y = ((self.min_speed.pow(2) - velocity_x.pow(2)) as f32).sqrt() as i16
+        let velocity_y = ((self.option.min_speed.pow(2) - velocity_x.pow(2)) as f32).sqrt() as i16
             * range[rng.gen_range(0..=1)];
         let mut vertice = Vertice::new();
         vertice.x = x;
@@ -222,12 +240,12 @@ impl World {
         self.quad_tree = QuadTree::new(QUAD_TREE_CAPACITY, self.boundary.clone());
     }
 
-    fn draw(&self, frame: &mut [u8]) {
+    fn draw(&mut self, frame: &mut [u8]) {
+        let start_time = SystemTime::now();
         self.background.draw(frame, WIDTH, HEIGHT);
-        if self.show_quad_tree {
-            self.quad_tree.draw_quad_tree(frame, WIDTH, HEIGHT);
-        }
-        self.quad_tree.draw(frame, WIDTH, HEIGHT);
+        self.quad_tree.draw_with_option(frame, WIDTH, HEIGHT, &self.option);
+        let end_time = SystemTime::now();
+        Self::update_fps_count(&mut self.draw_fps, start_time, end_time);
     }
 
     fn update(&mut self) {
@@ -236,36 +254,36 @@ impl World {
         for boid in self.quad_tree.to_vec() {
             let mut new_boid = boid.clone();
             let mut found: Vec<Boid> = vec![];
-            self.quad_tree.query(&mut found, &boid, self.vision_radius);
-            new_boid.separate(&found, self.avoid_factor, self.safe_radius, self.view_angle);
+            self.quad_tree.query(&mut found, &boid, self.option.vision_radius);
+            new_boid.separate(&found, self.option.avoid_factor, self.option.safe_radius, self.option.view_angle);
             new_boid.align(
                 &found,
-                self.matching_factor,
-                self.vision_radius,
-                self.view_angle,
+                self.option.matching_factor,
+                self.option.vision_radius,
+                self.option.view_angle,
             );
             new_boid.cohesion(
                 &found,
-                self.centering_factor,
-                self.vision_radius,
-                self.view_angle,
+                self.option.centering_factor,
+                self.option.vision_radius,
+                self.option.view_angle,
             );
-            new_boid.noise(self.noise);
-            new_boid.speed_limit(self.max_speed, self.min_speed);
-            new_boid.avoid_border(self.turn_factor, self.margin, WIDTH, HEIGHT);
+            new_boid.noise(self.option.noise);
+            new_boid.speed_limit(self.option.max_speed, self.option.min_speed);
+            new_boid.avoid_border(self.option.turn_factor, self.option.margin, WIDTH, HEIGHT);
             new_boid.update(WIDTH, HEIGHT);
-            new_boid.update_color(self.max_speed, self.min_speed);
+            new_boid.update_color(self.option.max_speed, self.option.min_speed);
             new_quard_tree.insert(&new_boid);
         }
         self.quad_tree = new_quard_tree.clone();
         let end_time = SystemTime::now();
-        Self::update_fps_count(self, start_time, end_time);
+        Self::update_fps_count(&mut self.update_fps, start_time, end_time);
     }
 
-    fn update_fps_count(&mut self, start_time: SystemTime, end_time: SystemTime) {
+    fn update_fps_count(fps: &mut f32, start_time: SystemTime, end_time: SystemTime) {
         match end_time.duration_since(start_time) {
             Ok(duration) => {
-                self.fps = 1.0 / duration.as_secs_f32();
+                *fps = 1.0 / duration.as_secs_f32();
             }
             Err(_) => {
                 println!("Cannot get duration");
