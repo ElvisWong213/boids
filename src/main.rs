@@ -23,7 +23,7 @@ use winit::{
 const WIDTH: u16 = 1280;
 const HEIGHT: u16 = 720;
 const SIZE: i16 = 3;
-const NUMBER_OF_BOIDS: u16 = 3000;
+const NUMBER_OF_BOIDS: u16 = 1000;
 const QUAD_TREE_CAPACITY: usize = 4;
 
 fn main() {
@@ -140,11 +140,12 @@ struct World {
     vision_radius: f32,
     max_speed: i16,
     min_speed: i16,
-    margin: i16,
+    margin: u16,
     turn_factor: i16,
     noise: bool,
     view_angle: f32,
     fps: f32,
+    show_quad_tree: bool,
 }
 
 impl World {
@@ -178,6 +179,7 @@ impl World {
             noise: false,
             view_angle: 120.0,
             fps: 0.0,
+            show_quad_tree: false,
         }
     }
 
@@ -220,6 +222,9 @@ impl World {
 
     fn draw(&self, frame: &mut [u8]) {
         self.background.draw(frame, WIDTH, HEIGHT);
+        if self.show_quad_tree {
+            self.quad_tree.draw_quad_tree(frame, WIDTH, HEIGHT);
+        }
         self.quad_tree.draw(frame, WIDTH, HEIGHT);
     }
 
@@ -243,11 +248,11 @@ impl World {
                 self.vision_radius,
                 self.view_angle,
             );
-            new_boid.avoid_border(self.turn_factor, self.margin, WIDTH, HEIGHT);
             new_boid.noise(self.noise);
             new_boid.speed_limit(self.max_speed, self.min_speed);
-            new_boid.update_color(self.max_speed, self.min_speed);
+            new_boid.avoid_border(self.turn_factor, self.margin, WIDTH, HEIGHT);
             new_boid.update(WIDTH, HEIGHT);
+            new_boid.update_color(self.max_speed, self.min_speed);
             new_quard_tree.insert(&new_boid);
         }
         self.quad_tree = new_quard_tree.clone();

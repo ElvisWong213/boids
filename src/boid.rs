@@ -137,17 +137,17 @@ impl Boid {
         }
     }
 
-    pub(crate) fn avoid_border(&mut self, turn_factor: i16, margin: i16, width: u16, height: u16) {
-        if self.vertice.x < margin {
+    pub(crate) fn avoid_border(&mut self, turn_factor: i16, margin: u16, width: u16, height: u16) {
+        if self.vertice.x < margin as i16 {
             self.velocity_x += turn_factor;
         }
-        if self.vertice.x > width as i16 - margin {
+        if self.vertice.x > width as i16 - margin as i16 {
             self.velocity_x -= turn_factor;
         }
-        if self.vertice.y < margin {
+        if self.vertice.y < margin as i16 {
             self.velocity_y += turn_factor;
         }
-        if self.vertice.y > height as i16 - margin {
+        if self.vertice.y > height as i16 - margin as i16 {
             self.velocity_y -= turn_factor;
         }
     }
@@ -182,16 +182,16 @@ impl Boid {
             return;
         }
         let mut rng = rand::thread_rng();
-        let val = rng.gen_range(0.0..1.0);
+        let val = rng.gen_range(0.0..2.0);
         let x_val = if rng.gen_bool(0.5) {
-            1.0 * val * self.velocity_x as f32
+            1.0 * val
         } else {
-            -1.0 * val * self.velocity_x as f32
+            -1.0 * val
         };
         let y_val = if rng.gen_bool(0.5) {
-            1.0 * val * self.velocity_y as f32
+            1.0 * val
         } else {
-            -1.0 * val * self.velocity_y as f32
+            -1.0 * val
         };
         self.velocity_x += x_val as i16;
         self.velocity_y += y_val as i16;

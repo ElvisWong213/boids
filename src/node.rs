@@ -19,6 +19,15 @@ impl Vertice {
     pub(crate) fn new() -> Self {
         Self { x: 0, y: 0 }
     }
+
+    pub(crate) fn slope(&self, other: &Vertice) -> Option<f32> {
+        let y_diff = self.y - other.y;
+        let x_diff = self.x - other.x;
+        if x_diff == 0 {
+            return None;
+        }
+        Some(y_diff as f32 / x_diff as f32)
+    }
 }
 
 impl Display for Vertice {
@@ -58,6 +67,32 @@ impl Rectangle {
         let dy = self.center_y - vertice.y as f32;
         let d = (dx * dx + dy * dy).sqrt();
         d <= vision_radius
+    }
+}
+
+impl RenderNode for Rectangle {
+    fn draw(&self, _frame: &mut [u8], _width: u16, _height: u16) {
+        let mut a = Vertice::new();
+        let mut b = Vertice::new();
+        let mut c = Vertice::new();
+        let mut d = Vertice::new();
+
+        a.x = self.center_x as i16 - self.half_width as i16;
+        a.y = self.center_y as i16 - self.half_height as i16;
+
+        b.x = self.center_x as i16 - self.half_width as i16;
+        b.y = self.center_y as i16 + self.half_height as i16;
+
+        c.x = self.center_x as i16 + self.half_width as i16;
+        c.y = self.center_y as i16 + self.half_height as i16;
+
+        d.x = self.center_x as i16 + self.half_width as i16;
+        d.y = self.center_y as i16 - self.half_height as i16;
+
+        draw_line(&a, &b, _frame, _width, _height);
+        draw_line(&b, &c, _frame, _width, _height);
+        draw_line(&c, &d, _frame, _width, _height);
+        draw_line(&d, &a, _frame, _width, _height);
     }
 }
 
@@ -279,6 +314,45 @@ impl QuadTree {
         }
         boids
     }
+
+    pub(crate) fn draw_quad_tree(&self, _frame: &mut [u8], _width: u16, _height: u16) {
+        self.boundary.draw(_frame, _width, _height);
+        if !self.splitted {
+            return;
+        }
+        match &self.top_left {
+            Some(q_tree) => {
+                q_tree.draw_quad_tree(_frame, _width, _width);
+            }
+            None => {
+                panic!("Top left is not create");
+            }
+        }
+        match &self.top_right {
+            Some(q_tree) => {
+                q_tree.draw_quad_tree(_frame, _width, _width);
+            }
+            None => {
+                panic!("Top right is not create");
+            }
+        }
+        match &self.bottom_left {
+            Some(q_tree) => {
+                q_tree.draw_quad_tree(_frame, _width, _width);
+            }
+            None => {
+                panic!("Bottom left is not create");
+            }
+        }
+        match &self.bottom_right {
+            Some(q_tree) => {
+                q_tree.draw_quad_tree(_frame, _width, _width);
+            }
+            None => {
+                panic!("Bottom right is not create");
+            }
+        }
+    }
 }
 
 impl RenderNode for QuadTree {
@@ -320,6 +394,72 @@ impl RenderNode for QuadTree {
             None => {
                 panic!("Bottom right is not create");
             }
+        }
+    }
+}
+
+pub(crate) fn draw_line(start: &Vertice, end: &Vertice, frame: &mut [u8], width: u16, height: u16) {
+    let color  = Color::White.to_color_array();
+    match start.slope(end) {
+        Some(slope) => {
+            if slope == 0.0 {
+                for x in start.x..=end.x {
+                    change_pixel(frame, x as usize, start.y as usize, width, height, color);
+                }
+            } else {
+                for x in start.x..=end.x {
+                    let y = (slope * x as f32) as usize;
+                    change_pixel(frame, x as usize, y, width, height, color);
+                }
+            }
+        }
+        None => {
+            for y in start.y..=end.y {
+                change_pixel(frame, start.x as usize, y as usize, width, height, color);
+            }
+        }
+    };
+}
+
+pub(crate) fn change_pixel(frame: &mut [u8], x: usize, y: usize, width: u16, height: u16, color: [u8; 4]) {
+    if x > width as usize || y > height as usize {
+        return;
+    }
+    let start: usize = y
+        .wrapping_mul(width as usize)
+        .wrapping_add(x)
+        .wrapping_mul(4);
+    for (count, val) in color.iter().enumerate() {
+        let index = start + count;
+        if index >= frame.len() {
+            break;
+        }
+        frame[index] = *val;
+    }
+}
+
+enum Color {
+    White,
+    Red,
+    Green,
+    Blue,
+}
+
+impl Color {
+    pub(crate) fn to_color_array(&self) -> [u8; 4] {
+        match self {
+            Color::White => {
+                [255, 255, 255, 255]
+            }
+            Color::Red => {
+                [255, 0, 0, 255]
+            }
+            Color::Green => {
+                [0, 255, 0, 255]
+            }
+            Color::Blue => {
+                [0, 0, 255, 255]
+            }        
         }
     }
 }
