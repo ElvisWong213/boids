@@ -157,6 +157,9 @@ impl Gui {
                     if ui.button("Adjust").clicked() {
                         self.open_adjust_window = true;
                         ui.close_menu();
+                    } else if ui.button("Debug").clicked() {
+                        self.open_debug_window = true;
+                        ui.close_menu();
                     }
                 })
             });
@@ -195,6 +198,7 @@ impl Gui {
                 ui.add(Checkbox::new(&mut world.option.show_quad_tree, "Show Quad Tree"));
                 ui.add(Checkbox::new(&mut world.option.show_safe_radius, "Show Safe Radius"));
                 ui.add(Checkbox::new(&mut world.option.show_vision_radius, "Show Vision Radius"));
+                ui.add(Checkbox::new(&mut world.option.show_facing_direction_with_speed, "Show Facing Direction With Speed"));
                 ui.separator();
                 ui.label(format!("FPS: {}", min(world.draw_fps as u16, world.update_fps as u16)));
                 ui.with_layout(Layout::left_to_right(Align::TOP), |ui| {

@@ -1,4 +1,4 @@
-use std::{f32::consts::PI, fmt::Display};
+use std::{f32::consts::PI, fmt::Display, mem::swap};
 
 use crate::node::{RenderNode, Vertice};
 
@@ -74,25 +74,38 @@ impl Display for Rectangle {
 
 pub(crate) fn draw_line(start: &Vertice, end: &Vertice, frame: &mut [u8], width: u16, height: u16) {
     let color = Color::White.to_color_array();
+    let mut start_x = start.x;
+    let mut start_y = start.y;
+    let mut end_x = end.x;
+    let mut end_y = end.y;
+    sort_two_value(&mut start_x, &mut end_x);
+    sort_two_value(&mut start_y, &mut end_y);
     match start.slope(end) {
         Some(slope) => {
             if slope == 0.0 {
-                for x in start.x..=end.x {
+                for x in start_x..=end_x {
                     change_pixel(frame, x as usize, start.y as usize, width, height, color);
                 }
             } else {
-                for x in start.x..=end.x {
-                    let y = (slope * x as f32) as usize;
+                let c = start.y as f32 - slope * start.x as f32; 
+                for x in start_x..=end_x {
+                    let y = (slope * x as f32 + c) as usize;
                     change_pixel(frame, x as usize, y, width, height, color);
                 }
             }
         }
         None => {
-            for y in start.y..=end.y {
+            for y in start_y..=end_y {
                 change_pixel(frame, start.x as usize, y as usize, width, height, color);
             }
         }
     };
+}
+
+pub(crate) fn sort_two_value(val_a: &mut i16, val_b: &mut i16) {
+    if val_a > val_b {
+        swap(val_a, val_b);
+    }
 }
 
 pub(crate) fn change_pixel(

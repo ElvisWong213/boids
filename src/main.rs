@@ -146,6 +146,7 @@ struct WorldOption {
     show_quad_tree: bool,
     show_safe_radius: bool,
     show_vision_radius: bool,
+    show_facing_direction_with_speed: bool,
 }
 
 impl WorldOption {
@@ -165,6 +166,7 @@ impl WorldOption {
             show_quad_tree: false,
             show_safe_radius: false,
             show_vision_radius: false,
+            show_facing_direction_with_speed: false,
         }
     }
 }

@@ -1,4 +1,4 @@
-use crate::{geometry::{change_pixel, Circle, Color}, node::{self, Vertice}, WorldOption};
+use crate::{geometry::{change_pixel, draw_line, Circle, Color}, node::{self, Vertice}, WorldOption};
 use node::{MovableNode, RenderNode};
 use rand::Rng;
 
@@ -244,6 +244,13 @@ impl Boid {
         let circle = Circle::new(self.vertice.x as f32, self.vertice.y as f32, radius, color);
         circle.draw(frame, width, height);
     }
+
+    fn draw_facing_direction_with_speed(&self, frame: &mut [u8], width: u16, height: u16) {
+        let mut end = Vertice::new();
+        end.x = self.vertice.x + self.velocity_x;
+        end.y = self.vertice.y + self.velocity_y;
+        draw_line(&self.vertice, &end, frame, width, height);
+    }
 }
 
 impl RenderNode for Boid {
@@ -253,6 +260,9 @@ impl RenderNode for Boid {
         }
         if _world_option.show_vision_radius {
             self.draw_circle(frame, width, height, _world_option.vision_radius, Color::Blue);
+        }
+        if _world_option.show_facing_direction_with_speed {
+            self.draw_facing_direction_with_speed(frame, width, height);
         }
         for i in 0..self.size {
             for j in 0..self.size {
