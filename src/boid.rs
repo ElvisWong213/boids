@@ -1,25 +1,28 @@
 use crate::{geometry::{change_pixel, draw_line, Circle, Color}, node::{self, Vertice}, WorldOption};
 use node::{MovableNode, RenderNode};
 use rand::Rng;
+use uuid::Uuid;
 
-#[derive(Clone, PartialEq)]
-pub(crate) struct Boid {
+#[derive(Clone)]
+pub struct Boid {
+    id: Uuid,
     pub vertice: Vertice,
     size: i16,
     velocity_x: i16,
     velocity_y: i16,
-    color: [u8; 4],
+    color: Color,
 }
 
 impl Boid {
-    pub(crate) fn new(
+    pub fn new(
         vertice: Vertice,
         size: i16,
         velocity_x: i16,
         velocity_y: i16,
-        color: [u8; 4],
+        color: Color,
     ) -> Self {
         Self {
+            id: Uuid::new_v4(),
             vertice,
             size,
             velocity_x,
@@ -28,7 +31,7 @@ impl Boid {
         }
     }
 
-    pub(crate) fn separate(
+    pub fn separate(
         &mut self,
         boids: &Vec<Boid>,
         avoid_factor: f32,
@@ -61,7 +64,44 @@ impl Boid {
         self.velocity_y += (close_dy * avoid_factor) as i16;
     }
 
-    pub(crate) fn align(
+    pub fn fear(
+        &mut self,
+        predators: &Vec<Boid>,
+        fear_factor: f32,
+        fear_radius: f32,
+    ) {
+        if predators.is_empty() || fear_radius == 0.0 || fear_factor == 0.0 {
+            return;
+        }
+        let mut close_dx: f32 = 0.0;
+        let mut close_dy: f32 = 0.0;
+
+        let mut new_vertice = Vertice::new();
+        new_vertice.x = self.velocity_x + self.vertice.x;
+        new_vertice.y = self.velocity_y + self.vertice.y;
+
+        for predator in predators {
+            if self == predator {
+                continue;
+            }
+
+            let dx = (self.vertice.x - predator.vertice.x) as f32;
+            let dy = (self.vertice.y - predator.vertice.y) as f32;
+            let d = (dx * dx + dy * dy).sqrt();
+            if d <= fear_radius {
+                close_dx += dx;
+                close_dy += dy;
+            }
+        }
+        if close_dx == 0.0 && close_dy == 0.0 {
+            return;
+        }
+        self.velocity_x = (close_dx * fear_factor) as i16;
+        self.velocity_y = (close_dy * fear_factor) as i16;
+    }
+
+
+    pub fn align(
         &mut self,
         boids: &Vec<Boid>,
         matching_factor: f32,
@@ -99,7 +139,7 @@ impl Boid {
         }
     }
 
-    pub(crate) fn cohesion(
+    pub fn cohesion(
         &mut self,
         boids: &Vec<Boid>,
         centering_factor: f32,
@@ -136,8 +176,8 @@ impl Boid {
             self.velocity_y += ((y_avg - self.vertice.y as f32) * centering_factor) as i16;
         }
     }
-
-    pub(crate) fn avoid_border(&mut self, turn_factor: i16, margin: u16, width: u16, height: u16) {
+    
+    pub fn avoid_border(&mut self, turn_factor: i16, margin: u16, width: u16, height: u16) {
         if self.vertice.x < margin as i16 {
             self.velocity_x += turn_factor;
         }
@@ -152,7 +192,7 @@ impl Boid {
         }
     }
 
-    pub(crate) fn speed_limit(&mut self, max_speed: i16, min_speed: i16) {
+    pub fn speed_limit(&mut self, max_speed: i16, min_speed: i16) {
         let x = self.velocity_x.wrapping_mul(self.velocity_x);
         let y = self.velocity_y.wrapping_mul(self.velocity_y);
         let speed = ((x.wrapping_add(y)) as f32).sqrt();
@@ -177,7 +217,7 @@ impl Boid {
         }
     }
 
-    pub(crate) fn noise(&mut self, on: bool) {
+    pub fn noise(&mut self, on: bool) {
         if !on {
             return;
         }
@@ -195,21 +235,6 @@ impl Boid {
         };
         self.velocity_x += x_val as i16;
         self.velocity_y += y_val as i16;
-    }
-
-    pub(crate) fn update_color(&mut self, max_speed: i16, min_speed: i16) {
-        let velocity_x = self.velocity_x as f32;
-        let velocity_y = self.velocity_y as f32;
-        let mut current_speed = velocity_x * velocity_x + velocity_y * velocity_y;
-        current_speed = current_speed.sqrt();
-        let max = max_speed as f32;
-        let min = min_speed as f32;
-        if current_speed > max {
-            return;
-        }
-        let range = (current_speed - min) / (max - min) * 255.0;
-        self.color[0] = 255 - range as u8;
-        self.color[1] = range as u8;
     }
 
     // right is 0 degree
@@ -253,13 +278,19 @@ impl Boid {
     }
 }
 
+impl PartialEq for Boid {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+    }
+}
+
 impl RenderNode for Boid {
     fn draw_with_option(&self, frame: &mut [u8], width: u16, height: u16, _world_option: &WorldOption) {
         if _world_option.show_safe_radius {
             self.draw_circle(frame, width, height, _world_option.safe_radius, Color::Red);
         }
         if _world_option.show_vision_radius {
-            self.draw_circle(frame, width, height, _world_option.vision_radius, Color::Blue);
+            self.draw_circle(frame, width, height, _world_option.boid_vision_radius, Color::Blue);
         }
         if _world_option.show_facing_direction_with_speed {
             self.draw_facing_direction_with_speed(frame, width, height);
@@ -271,7 +302,7 @@ impl RenderNode for Boid {
                 if x >= width as usize || y >= height as usize {
                     continue;
                 }
-                change_pixel(frame, x, y, width, height, self.color);
+                change_pixel(frame, x, y, width, height, self.color.to_color_array());
             }
         }
     }

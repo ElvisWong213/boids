@@ -7,10 +7,10 @@ use pixels::{wgpu, PixelsContext};
 use winit::event_loop::EventLoopWindowTarget;
 use winit::window::Window;
 
-use crate::World;
+use crate::{World, WIDTH};
 
 /// Manages all state required for rendering egui over `Pixels`.
-pub(crate) struct Framework {
+pub struct Framework {
     // State for egui.
     egui_ctx: Context,
     egui_state: egui_winit::State,
@@ -26,13 +26,14 @@ pub(crate) struct Framework {
 /// Example application state. A real application will need a lot more state than this.
 struct Gui {
     /// Only show the egui window when true.
-    open_adjust_window: bool,
+    open_boid_window: bool,
+    open_predator_window: bool,
     open_debug_window: bool,
 }
 
 impl Framework {
     /// Create egui.
-    pub(crate) fn new<T>(
+    pub fn new<T>(
         event_loop: &EventLoopWindowTarget<T>,
         width: u32,
         height: u32,
@@ -65,24 +66,24 @@ impl Framework {
     }
 
     /// Handle input events from the window manager.
-    pub(crate) fn handle_event(&mut self, event: &winit::event::WindowEvent) -> EventResponse {
+    pub fn handle_event(&mut self, event: &winit::event::WindowEvent) -> EventResponse {
         self.egui_state.on_event(&self.egui_ctx, event)
     }
 
     /// Resize egui.
-    pub(crate) fn resize(&mut self, width: u32, height: u32) {
+    pub fn resize(&mut self, width: u32, height: u32) {
         if width > 0 && height > 0 {
             self.screen_descriptor.size_in_pixels = [width, height];
         }
     }
 
     /// Update scaling factor.
-    pub(crate) fn scale_factor(&mut self, scale_factor: f64) {
+    pub fn scale_factor(&mut self, scale_factor: f64) {
         self.screen_descriptor.pixels_per_point = scale_factor as f32;
     }
 
     /// Prepare egui.
-    pub(crate) fn prepare(&mut self, window: &Window, world: &mut World) {
+    pub fn prepare(&mut self, window: &Window, world: &mut World) {
         // Run the egui frame and create all paint jobs to prepare for rendering.
         let raw_input = self.egui_state.take_egui_input(window);
         let output = self.egui_ctx.run(raw_input, |egui_ctx| {
@@ -97,7 +98,7 @@ impl Framework {
     }
 
     /// Render egui.
-    pub(crate) fn render(
+    pub fn render(
         &mut self,
         encoder: &mut wgpu::CommandEncoder,
         render_target: &wgpu::TextureView,
@@ -146,7 +147,11 @@ impl Framework {
 impl Gui {
     /// Create a `Gui`.
     fn new() -> Self {
-        Self { open_adjust_window: true, open_debug_window: true }
+        Self { 
+            open_boid_window: false,
+            open_predator_window: false,
+            open_debug_window: true,
+        }
     }
 
     /// Create the UI using egui.
@@ -154,8 +159,11 @@ impl Gui {
         egui::TopBottomPanel::top("menubar_container").show(ctx, |ui| {
             egui::menu::bar(ui, |ui| {
                 ui.menu_button("Setting", |ui| {
-                    if ui.button("Adjust").clicked() {
-                        self.open_adjust_window = true;
+                    if ui.button("Boid").clicked() {
+                        self.open_boid_window = true;
+                        ui.close_menu();
+                    } else if ui.button("Predator").clicked() {
+                        self.open_predator_window = true;
                         ui.close_menu();
                     } else if ui.button("Debug").clicked() {
                         self.open_debug_window = true;
@@ -165,23 +173,45 @@ impl Gui {
             });
         });
 
-        egui::Window::new("Adjust")
-            .open(&mut self.open_adjust_window)
+        egui::Window::new("Boid")
+            .open(&mut self.open_boid_window)
             .show(ctx, |ui| {
                 ui.add(Slider::new(&mut world.option.avoid_factor, 0.0..=1.0).text("Avoid factor"));
                 ui.add(Slider::new(&mut world.option.matching_factor, 0.0..=1.0).text("Matching factor"));
                 ui.add(Slider::new(&mut world.option.centering_factor, 0.0..=1.0).text("Centering factor"));
-                ui.add(Slider::new(&mut world.option.safe_radius, 0.0..=1000.0).text("Safe radius"));
-                ui.add(Slider::new(&mut world.option.vision_radius, 0.0..=1000.0).text("Vision radius"));
+                ui.add(Slider::new(&mut world.option.safe_radius, 0.0..=world.option.boid_vision_radius).text("Safe radius"));
+                ui.add(Slider::new(&mut world.option.boid_vision_radius, 0.0..=WIDTH as f32).text("Vision radius"));
                 ui.separator();
-                ui.add(Slider::new(&mut world.option.max_speed, world.option.min_speed..=100).text("Max speed"));
-                ui.add(Slider::new(&mut world.option.min_speed, 0..=world.option.max_speed).text("Min speed"));
+                ui.add(Slider::new(&mut world.option.boid_max_speed, world.option.boid_min_speed..=100).text("Max speed"));
+                ui.add(Slider::new(&mut world.option.boid_min_speed, 0..=world.option.boid_max_speed).text("Min speed"));
                 ui.separator();
                 ui.add(Slider::new(&mut world.option.margin, 0..=500).text("Margin"));
                 ui.add(Slider::new(&mut world.option.turn_factor, 0..=30).text("Turn factor"));
                 ui.separator();
-                ui.add(Slider::new(&mut world.option.view_angle, 0.0..=364.9).text("View angle"));
+                ui.add(Slider::new(&mut world.option.boid_view_angle, 0.0..=365.0).text("View angle"));
                 ui.add(Checkbox::new(&mut world.option.noise, "Add Noise"));
+                ui.with_layout(Layout::left_to_right(Align::TOP), |ui| {
+                    if ui.add(Button::new("Restart")).clicked() {
+                        world.restart();
+                    }
+                    if ui.add(Button::new("Clear")).clicked() {
+                        world.clear_all();
+                    }
+                });
+            });
+
+        egui::Window::new("Predator")
+            .open(&mut self.open_predator_window)
+            .show(ctx, |ui| {
+                ui.add(Slider::new(&mut world.option.fear_factor, 0.0..=1.0).text("Fear factor"));
+                ui.add(Slider::new(&mut world.option.fear_radius, 0.0..=WIDTH as f32).text("Fear radius"));
+                ui.separator();
+                ui.add(Slider::new(&mut world.option.predator_max_speed, world.option.predator_min_speed..=100).text("Max speed"));
+                ui.add(Slider::new(&mut world.option.predator_min_speed, 0..=world.option.predator_max_speed).text("Min speed"));
+                ui.separator();
+                ui.add(Slider::new(&mut world.option.predator_vision_radius, 0.0..=WIDTH as f32).text("Vision radius"));
+                ui.add(Slider::new(&mut world.option.predator_view_angle, 0.0..=365.0).text("View angle"));
+                ui.separator();
                 ui.with_layout(Layout::left_to_right(Align::TOP), |ui| {
                     if ui.add(Button::new("Restart")).clicked() {
                         world.restart();
@@ -195,10 +225,10 @@ impl Gui {
         egui::Window::new("Debug")
             .open(&mut self.open_debug_window)
             .show(ctx, |ui| {
-                ui.add(Checkbox::new(&mut world.option.show_quad_tree, "Show Quad Tree"));
-                ui.add(Checkbox::new(&mut world.option.show_safe_radius, "Show Safe Radius"));
-                ui.add(Checkbox::new(&mut world.option.show_vision_radius, "Show Vision Radius"));
-                ui.add(Checkbox::new(&mut world.option.show_facing_direction_with_speed, "Show Facing Direction With Speed"));
+                ui.add(Checkbox::new(&mut world.option.show_quad_tree, "Show quad tree"));
+                ui.add(Checkbox::new(&mut world.option.show_safe_radius, "Show safe radius"));
+                ui.add(Checkbox::new(&mut world.option.show_vision_radius, "Show vision radius"));
+                ui.add(Checkbox::new(&mut world.option.show_facing_direction_with_speed, "Show facing direction with speed"));
                 ui.separator();
                 ui.label(format!("FPS: {}", min(world.draw_fps as u16, world.update_fps as u16)));
                 ui.with_layout(Layout::left_to_right(Align::TOP), |ui| {

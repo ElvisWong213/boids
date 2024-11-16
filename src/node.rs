@@ -1,27 +1,27 @@
 use crate::{boid::Boid, geometry::Rectangle, WorldOption};
 use std::fmt::Display;
 
-pub(crate) trait RenderNode {
+pub trait RenderNode {
     fn draw_with_option(&self, _frame: &mut [u8], _width: u16, _height: u16, _world_option: &WorldOption) {}
     fn draw(&self, _frame: &mut [u8], _width: u16, _height: u16) {}
 }
 
-pub(crate) trait MovableNode {
+pub trait MovableNode {
     fn update(&mut self, _width: u16, _height: u16) {}
 }
 
 #[derive(Clone, PartialEq)]
-pub(crate) struct Vertice {
+pub struct Vertice {
     pub x: i16,
     pub y: i16,
 }
 
 impl Vertice {
-    pub(crate) fn new() -> Self {
+    pub fn new() -> Self {
         Self { x: 0, y: 0 }
     }
 
-    pub(crate) fn slope(&self, other: &Vertice) -> Option<f32> {
+    pub fn slope(&self, other: &Vertice) -> Option<f32> {
         let y_diff = self.y - other.y;
         let x_diff = self.x - other.x;
         if x_diff == 0 {
@@ -38,7 +38,7 @@ impl Display for Vertice {
 }
 
 #[derive(Clone)]
-pub(crate) struct QuadTree {
+pub struct QuadTree {
     capacity: usize,
     boundary: Rectangle,
     boids: Vec<Boid>,
@@ -50,7 +50,7 @@ pub(crate) struct QuadTree {
 }
 
 impl QuadTree {
-    pub(crate) fn new(capacity: usize, boundary: Rectangle) -> Self {
+    pub fn new(capacity: usize, boundary: Rectangle) -> Self {
         Self {
             capacity,
             boundary,
@@ -63,7 +63,7 @@ impl QuadTree {
         }
     }
 
-    pub(crate) fn insert(&mut self, boid: &Boid) -> bool {
+    pub fn insert(&mut self, boid: &Boid) -> bool {
         if !self
             .boundary
             .contains_point(boid.vertice.x as f32, boid.vertice.y as f32)
@@ -153,12 +153,8 @@ impl QuadTree {
         self.bottom_left = Some(Box::new(QuadTree::new(self.capacity, bl)));
     }
 
-    pub(crate) fn query(&self, found: &mut Vec<Boid>, boid: &Boid, vision_radius: f32) {
-        if !self.boundary.intersects(&boid.vertice, vision_radius)
-            && !self
-                .boundary
-                .contains_point(boid.vertice.x as f32, boid.vertice.y as f32)
-        {
+    pub fn query(&self, found: &mut Vec<Boid>, boid: &Boid, vision_radius: f32) {
+        if !self.boundary.intersects(&boid.vertice, vision_radius) && !self.boundary.contains_point(boid.vertice.x as f32, boid.vertice.y as f32) || vision_radius == 0.0 {
             return;
         }
         for other_boid in &self.boids {
@@ -203,7 +199,7 @@ impl QuadTree {
         }
     }
 
-    pub(crate) fn to_vec(&self) -> Vec<Boid> {
+    pub fn to_vec(&self) -> Vec<Boid> {
         let mut boids: Vec<Boid> = vec![];
         for boid in &self.boids {
             boids.push(boid.clone());
@@ -246,7 +242,7 @@ impl QuadTree {
         boids
     }
 
-    pub(crate) fn draw_quad_tree(&self, frame: &mut [u8], width: u16, height: u16) {
+    pub fn draw_quad_tree(&self, frame: &mut [u8], width: u16, height: u16) {
         self.boundary.draw(frame, width, height);
     }
 }

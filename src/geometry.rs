@@ -3,7 +3,7 @@ use std::{f32::consts::PI, fmt::Display, mem::swap};
 use crate::node::{RenderNode, Vertice};
 
 #[derive(Clone)]
-pub(crate) struct Rectangle {
+pub struct Rectangle {
     pub center_x: f32,
     pub center_y: f32,
     pub half_width: f32,
@@ -11,7 +11,7 @@ pub(crate) struct Rectangle {
 }
 
 impl Rectangle {
-    pub(crate) fn new(center_x: f32, center_y: f32, half_width: f32, half_height: f32) -> Self {
+    pub fn new(center_x: f32, center_y: f32, half_width: f32, half_height: f32) -> Self {
         Self {
             center_x,
             center_y,
@@ -20,7 +20,7 @@ impl Rectangle {
         }
     }
 
-    pub(crate) fn contains_point(&self, x: f32, y: f32) -> bool {
+    pub fn contains_point(&self, x: f32, y: f32) -> bool {
         let min_x = self.center_x - self.half_width;
         let max_x = self.center_x + self.half_width;
         let min_y = self.center_y - self.half_height;
@@ -28,7 +28,7 @@ impl Rectangle {
         x >= min_x && x <= max_x && y >= min_y && y <= max_y
     }
 
-    pub(crate) fn intersects(&self, vertice: &Vertice, vision_radius: f32) -> bool {
+    pub fn intersects(&self, vertice: &Vertice, vision_radius: f32) -> bool {
         let dx = self.center_x - vertice.x as f32;
         let dy = self.center_y - vertice.y as f32;
         let d = (dx * dx + dy * dy).sqrt();
@@ -72,7 +72,7 @@ impl Display for Rectangle {
     }
 }
 
-pub(crate) fn draw_line(start: &Vertice, end: &Vertice, frame: &mut [u8], width: u16, height: u16) {
+pub fn draw_line(start: &Vertice, end: &Vertice, frame: &mut [u8], width: u16, height: u16) {
     let color = Color::White.to_color_array();
     let mut start_x = start.x;
     let mut start_y = start.y;
@@ -102,13 +102,13 @@ pub(crate) fn draw_line(start: &Vertice, end: &Vertice, frame: &mut [u8], width:
     };
 }
 
-pub(crate) fn sort_two_value(val_a: &mut i16, val_b: &mut i16) {
+pub fn sort_two_value(val_a: &mut i16, val_b: &mut i16) {
     if val_a > val_b {
         swap(val_a, val_b);
     }
 }
 
-pub(crate) fn change_pixel(
+pub fn change_pixel(
     frame: &mut [u8],
     x: usize,
     y: usize,
@@ -132,7 +132,7 @@ pub(crate) fn change_pixel(
     }
 }
 
-pub(crate) struct Circle {
+pub struct Circle {
     x: f32,
     y: f32,
     radius: f32,
@@ -140,7 +140,7 @@ pub(crate) struct Circle {
 }
 
 impl Circle {
-    pub(crate) fn new(x: f32, y: f32, radius: f32, color: Color) -> Self {
+    pub fn new(x: f32, y: f32, radius: f32, color: Color) -> Self {
         Self { x, y, radius, color }
     }
 }
@@ -160,7 +160,8 @@ impl RenderNode for Circle {
     }
 }
 
-pub(crate) enum Color {
+#[derive(Clone)]
+pub enum Color {
     Black,
     White,
     Red,
@@ -169,7 +170,7 @@ pub(crate) enum Color {
 }
 
 impl Color {
-    pub(crate) fn to_color_array(&self) -> [u8; 4] {
+    pub fn to_color_array(&self) -> [u8; 4] {
         match self {
             Color::Black => [0, 0, 0, 0],
             Color::White => [255, 255, 255, 255],
